@@ -137,7 +137,7 @@ In Supabase dashboard → **Database → Webhooks → Create webhook**:
 
 ### 9. Configure `config.js`
 
-Copy `config.example.js` to `config.js` and fill in:
+Copy `src/config.example.js` to `src/config.js` and fill in:
 
 ```js
 const SUPABASE_URL    = 'https://your-project-ref.supabase.co';
@@ -147,29 +147,29 @@ const TUMBLR_CLIENT_ID  = 'your-tumblr-client-id';
 
 Find `SUPABASE_URL` and `SUPABASE_ANON_KEY` in Supabase dashboard → **Settings → API**.
 
-**Do not commit `config.js`** — it contains your anon key. Add it to `.gitignore`.
+**Do not commit `src/config.js`** — it contains your anon key. It is already listed in `.gitignore`.
 
 ### 10. Customize `survey-data.js`
 
-Replace the placeholder questions and options with your own. Keep `id` values stable — changing them after submissions exist will orphan those picks in the admin view.
+Replace the placeholder questions and options in `src/survey-data.js` with your own. Keep `id` values stable — changing them after submissions exist will orphan those picks in the admin view.
 
 Update the `CARD_*` constants (Tumblr caption template, email subject/body, etc.) as needed.
 
 ### 11. Deploy to Neocities
 
-Upload all static files to your Neocities site:
+Upload all files from the `src/` folder to your Neocities site:
 
 ```
-index.html
-admin.html
-styles.css
-config.js
-survey-data.js
-survey.js
-admin.js
+src/index.html
+src/admin.html
+src/styles.css
+src/config.js
+src/survey-data.js
+src/survey.js
+src/admin.js
 ```
 
-Do **not** upload `config.example.js`, `supabase/`, or `README.md` unless you want them public.
+Do **not** upload `src/config.example.js`, `supabase/`, or `README.md` unless you want them public.
 
 ---
 
