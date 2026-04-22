@@ -1,0 +1,28 @@
+name: Deploy Supabase Edge Functions
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/functions/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy Edge Functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase link --project-ref ${{ vars.SUPABASE_PROJECT_REF }}
+          supabase functions deploy generate-card --no-verify-jwt
+          supabase functions deploy send-card --no-verify-jwt
+          supabase functions deploy tumblr-token-exchange --no-verify-jwt
