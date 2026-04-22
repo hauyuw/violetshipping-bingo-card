@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Bingo Admin</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <noscript>
+    <div class="noscript-banner">
+      This site needs JavaScript. Please enable it to continue.
+    </div>
+  </noscript>
+
+  <!-- Session check loading -->
+  <div id="session-loading" class="page-wrapper">
+    <p class="loading">Loading…</p>
+  </div>
+
+  <!-- Login -->
+  <div id="login-section" class="page-wrapper" style="display:none;">
+    <header class="page-header">
+      <div id="logo-login" class="logo-slot"><!-- drop your <img> or SVG here --></div>
+      <h1>Admin Login</h1>
+    </header>
+    <form id="login-form" class="card login-form" novalidate>
+      <div class="form-section">
+        <label for="login-email">Email</label>
+        <input type="email" id="login-email" autocomplete="email" required>
+      </div>
+      <div class="form-section">
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" autocomplete="current-password" required>
+      </div>
+      <div id="login-error" class="form-error" style="display:none;" role="alert"></div>
+      <button type="submit" class="btn" id="login-btn">Log in</button>
+    </form>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard-section" class="admin-wrapper" style="display:none;">
+    <header class="page-header">
+      <div id="logo-dash" class="logo-slot"><!-- drop your <img> or SVG here --></div>
+      <h1>Bingo Admin</h1>
+    </header>
+
+    <div class="admin-toolbar">
+      <div class="admin-toolbar-left">
+        <button class="btn btn-sm btn-ghost" id="refresh-btn">Refresh</button>
+        <button class="btn btn-sm btn-ghost" id="tumblr-connect-btn">Connect Tumblr</button>
+        <div>
+          <p class="tumblr-warning" id="tumblr-mismatch-warning" style="display:none;">
+            ⚠ Connected account differs from TUMBLR_BLOG_IDENTIFIER — posts may fail.
+          </p>
+        </div>
+      </div>
+      <div class="admin-toolbar-right">
+        <button class="btn btn-sm btn-ghost" id="logout-btn">Log out</button>
+      </div>
+    </div>
+
+    <!-- Tumblr expired reconnect banner -->
+    <div id="reconnect-banner" class="reconnect-banner" style="display:none;" tabindex="0">
+      ⚠ Your Tumblr connection expired — click here to reconnect.
+    </div>
+
+    <!-- Submissions -->
+    <div id="submissions-area">
+      <p class="loading" id="submissions-loading">Loading submissions…</p>
+      <div class="table-wrapper" id="table-wrapper" style="display:none;">
+        <table id="submissions-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Name</th>
+              <th>Contact</th>
+              <th>Size</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="submissions-tbody"></tbody>
+        </table>
+        <p class="empty-state" id="empty-state" style="display:none;">
+          No submissions yet. Share your form URL to start collecting!
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+  <script src="survey-data.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

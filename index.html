@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Bingo Card Generator</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <noscript>
+    <div class="noscript-banner">
+      This site needs JavaScript. Please enable it to continue.
+    </div>
+  </noscript>
+
+  <div class="page-wrapper">
+    <header class="page-header">
+      <div id="logo" class="logo-slot"><!-- drop your <img> or SVG here --></div>
+      <h1>Get Your Bingo Card</h1>
+    </header>
+
+    <!-- Thank-you view (hidden until submit) -->
+    <div id="thank-you" aria-live="polite">
+      <div class="card">
+        <p class="thankyou-heading">Thanks for submitting! Your bingo card will be sent to your Tumblr / email shortly.</p>
+        <div id="picks-summary" class="picks-summary"></div>
+      </div>
+    </div>
+
+    <!-- Survey form -->
+    <form id="survey-form" class="card" novalidate>
+      <!-- Honeypot: hidden from real users, caught bots fill this -->
+      <input type="text" name="website" id="hp-website" autocomplete="off"
+             tabindex="-1" aria-hidden="true" class="honeypot">
+
+      <!-- Name -->
+      <div class="form-section">
+        <label for="respondent-name">Your name <span aria-hidden="true">*</span></label>
+        <input type="text" id="respondent-name" name="respondent_name"
+               maxlength="80" required autocomplete="name">
+        <p class="field-error" id="name-error" role="alert"></p>
+      </div>
+
+      <!-- Contact type -->
+      <div class="form-section">
+        <fieldset id="contact-type-fieldset">
+          <legend>How should we send your card? <span aria-hidden="true">*</span></legend>
+          <div class="radio-group">
+            <label>
+              <input type="radio" name="contact_type" value="tumblr" checked>
+              Tumblr — I'll get a post @mentioning me
+            </label>
+            <label>
+              <input type="radio" name="contact_type" value="email">
+              Email — send it to my inbox
+            </label>
+          </div>
+        </fieldset>
+        <div style="margin-top: 0.75rem;">
+          <label for="contact-input" id="contact-label">Your Tumblr handle</label>
+          <input type="text" id="contact-input" name="contact_value"
+                 maxlength="120" required autocomplete="off"
+                 placeholder="your-tumblr-handle">
+          <p class="field-error" id="contact-error" role="alert"></p>
+        </div>
+      </div>
+
+      <!-- Card size -->
+      <div class="form-section">
+        <fieldset>
+          <legend>Card size</legend>
+          <div class="radio-group" id="size-radios">
+            <label>
+              <input type="radio" name="card_size" value="nano">
+              Nano — 1&times;3 banner
+            </label>
+            <label>
+              <input type="radio" name="card_size" value="mini" checked>
+              Mini — 3&times;3 grid with FREE center
+            </label>
+            <label>
+              <input type="radio" name="card_size" value="standard">
+              Standard — 5&times;5 grid with FREE center
+            </label>
+          </div>
+        </fieldset>
+        <p class="picks-counter" id="picks-counter" aria-live="polite">
+          Picks: <span class="count" id="picks-count">0</span> / <span id="picks-needed">8</span> needed for Mini
+        </p>
+        <p class="field-error" id="picks-error" role="alert"></p>
+      </div>
+
+      <!-- Questions (rendered by survey.js) -->
+      <div class="form-section" id="questions-section">
+        <p class="loading" id="questions-loading">Loading questions…</p>
+        <div id="questions-container"></div>
+      </div>
+
+      <!-- Submit -->
+      <div id="submit-error" class="form-error" style="display:none;" role="alert"></div>
+      <button type="submit" class="btn" id="submit-btn">Submit &amp; Get My Card</button>
+    </form>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+  <script src="survey-data.js"></script>
+  <script src="survey.js"></script>
+</body>
+</html>
