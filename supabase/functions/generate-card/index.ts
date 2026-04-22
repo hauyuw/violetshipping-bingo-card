@@ -99,43 +99,51 @@ function fitsInCell(lines: string[], fontSize: number, cellW: number, cellH: num
   return lines.every(l => l.length * charW <= maxW);
 }
 
-function fitText(text: string, cellW: number, cellH: number): { lines: string[]; fontSize: number } {
-  let fontSize = Math.floor(cellH * 0.22);
+// Returns the largest fontSize at which every text in the list fits in a square cell
+function uniformFontSize(allTexts: string[], cellSize: number): number {
+  let fontSize = Math.floor(cellSize * 0.17);
   const minSize = 16;
-  const maxW    = cellW - PADDING * 2;
+  const maxW    = cellSize - PADDING * 2;
 
   while (fontSize >= minSize) {
-    const lines = wrapText(text, fontSize, maxW);
-    if (fitsInCell(lines, fontSize, cellW, cellH)) return { lines, fontSize };
+    const allFit = allTexts.every(text => {
+      const lines = wrapText(text, fontSize, maxW);
+      return fitsInCell(lines, fontSize, cellSize, cellSize);
+    });
+    if (allFit) return fontSize;
     fontSize -= 2;
   }
+  return minSize;
+}
 
-  // At floor — truncate if needed
-  let lines = wrapText(text, minSize, maxW);
-  while (!fitsInCell(lines, minSize, cellW, cellH) && lines.length > 1) {
+function renderLines(text: string, fontSize: number, cellSize: number): string[] {
+  const maxW = cellSize - PADDING * 2;
+  let lines  = wrapText(text, fontSize, maxW);
+
+  // Last-resort truncation if still overflowing at minSize
+  while (!fitsInCell(lines, fontSize, cellSize, cellSize) && lines.length > 1) {
     lines.pop();
   }
-  if (!fitsInCell(lines, minSize, cellW, cellH)) {
-    const charsPerLine = Math.floor(maxW / (minSize * AVG_CHAR_RATIO));
+  if (!fitsInCell(lines, fontSize, cellSize, cellSize)) {
+    const charsPerLine = Math.floor(maxW / (fontSize * AVG_CHAR_RATIO));
     lines = [text.slice(0, charsPerLine - 1) + '…'];
   }
-  return { lines, fontSize: minSize };
+  return lines;
 }
 
 // ── SVG cell ──────────────────────────────────────────────────────────────────
 function cellSvg(
-  x: number, y: number, w: number, h: number,
-  text: string, isFree = false,
+  x: number, y: number, size: number,
+  text: string, fontSize: number, isFree = false,
 ): string {
-  const fill   = isFree ? PALETTE.accent   : PALETTE.surface;
-  const stroke = isFree ? PALETTE.accent   : PALETTE.border;
+  const fill    = isFree ? PALETTE.accent   : PALETTE.surface;
+  const stroke  = isFree ? PALETTE.accent   : PALETTE.border;
   const fgColor = isFree ? PALETTE.accentFg : PALETTE.text;
 
-  const { lines, fontSize } = fitText(text, w, h);
-
+  const lines       = renderLines(text, fontSize, size);
   const lineHeight  = fontSize * 1.3;
   const totalHeight = lines.length * lineHeight;
-  const startY      = y + (h - totalHeight) / 2 + fontSize * 0.85;
+  const startY      = y + (size - totalHeight) / 2 + fontSize * 0.85;
 
   const fontWeight = isFree ? 'bold' : 'normal';
   const fontFamily = isFree ? 'Inter Bold, NotoSans' : 'Inter, NotoSans';
@@ -143,12 +151,12 @@ function cellSvg(
   let tspans = '';
   lines.forEach((line, i) => {
     const ty = startY + i * lineHeight;
-    tspans += `<tspan x="${x + w / 2}" y="${ty}">${escSvg(line)}</tspan>`;
+    tspans += `<tspan x="${x + size / 2}" y="${ty}">${escSvg(line)}</tspan>`;
   });
 
   return `
   <rect x="${x + STROKE_W / 2}" y="${y + STROKE_W / 2}"
-        width="${w - STROKE_W}" height="${h - STROKE_W}"
+        width="${size - STROKE_W}" height="${size - STROKE_W}"
         rx="${RX}" ry="${RX}"
         fill="${fill}" stroke="${stroke}" stroke-width="${STROKE_W}"/>
   <text font-family="${fontFamily}" font-size="${fontSize}" font-weight="${fontWeight}"
@@ -177,8 +185,19 @@ function buildSvg(cells: string[], cfg: typeof CARD_CONFIGS.mini): string {
 
   const freeText = Deno.env.get('FREE_CELL_TEXT') || 'FREE';
 
+  // Collect all texts to find the largest font size that fits every cell uniformly
+  const allTexts: string[] = [];
+  let idx = 0;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const pos = r * cols + c;
+      allTexts.push(pos === freeIdx ? freeText : (cells[idx++] ?? ''));
+    }
+  }
+  const fontSize = uniformFontSize(allTexts, cellSize);
+
   let rects = '';
-  let idx   = 0;
+  idx = 0;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const pos    = r * cols + c;
@@ -186,7 +205,7 @@ function buildSvg(cells: string[], cfg: typeof CARD_CONFIGS.mini): string {
       const y      = gridStartY + r * (cellSize + GAP);
       const isFree = pos === freeIdx;
       const text   = isFree ? freeText : (cells[idx++] ?? '');
-      rects += cellSvg(x, y, cellSize, cellSize, text, isFree);
+      rects += cellSvg(x, y, cellSize, text, fontSize, isFree);
     }
   }
 
