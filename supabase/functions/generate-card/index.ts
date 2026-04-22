@@ -6,16 +6,16 @@ import { Resvg, initWasm } from 'npm:@resvg/resvg-wasm@2.6.2';
 let wasmReady = false;
 async function ensureWasm() {
   if (wasmReady) return;
-  const wasmRes = await fetch(new URL('npm:@resvg/resvg-wasm@2.6.2/index_bg.wasm'));
+  const wasmRes = await fetch('https://esm.sh/@resvg/resvg-wasm@2.6.2/index_bg.wasm');
   await initWasm(await wasmRes.arrayBuffer());
   wasmReady = true;
 }
 
 // ── Card config ───────────────────────────────────────────────────────────────
 const CARD_CONFIGS = {
-  nano:     { cols: 3, rows: 1, canvasW: 1200, canvasH: 400,  margin: 40, freeIdx: -1 },
-  mini:     { cols: 3, rows: 3, canvasW: 1275, canvasH: 1650, margin: 75, freeIdx: 4  },
-  standard: { cols: 5, rows: 5, canvasW: 1275, canvasH: 1650, margin: 75, freeIdx: 12 },
+  nano:     { cols: 3, rows: 1, canvasW: 1200, margin: 40, freeIdx: -1 },
+  mini:     { cols: 3, rows: 3, canvasW: 1275, margin: 75, freeIdx: 4  },
+  standard: { cols: 5, rows: 5, canvasW: 1275, margin: 75, freeIdx: 12 },
 };
 const MIN_PICKS = { nano: 3, mini: 8, standard: 24 };
 const GAP = 6;
@@ -36,12 +36,14 @@ const PALETTE = {
 let fontBuffers: Uint8Array[] | null = null;
 async function getFontBuffers(): Promise<Uint8Array[]> {
   if (fontBuffers) return fontBuffers;
-  const [regular, bold, noto] = await Promise.all([
-    Deno.readFile(new URL('./Inter-Regular.ttf', import.meta.url)),
-    Deno.readFile(new URL('./Inter-Bold.ttf', import.meta.url)),
-    Deno.readFile(new URL('./NotoSans-Regular.ttf', import.meta.url)),
+  const base = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/fonts`;
+  const [regular, bold, noto, symbols] = await Promise.all([
+    fetch(`${base}/Inter-Regular.ttf`).then(r => r.arrayBuffer()).then(b => new Uint8Array(b)),
+    fetch(`${base}/Inter-Bold.ttf`).then(r => r.arrayBuffer()).then(b => new Uint8Array(b)),
+    fetch(`${base}/NotoSans-Regular.ttf`).then(r => r.arrayBuffer()).then(b => new Uint8Array(b)),
+    fetch(`${base}/NotoSansSymbols2-Regular.ttf`).then(r => r.arrayBuffer()).then(b => new Uint8Array(b)),
   ]);
-  fontBuffers = [regular, bold, noto];
+  fontBuffers = [regular, bold, noto, symbols];
   return fontBuffers;
 }
 
@@ -58,12 +60,21 @@ function seededShuffle<T>(arr: T[], seed: number): T[] {
 }
 
 // ── Word wrap (font metric approximation) ─────────────────────────────────────
-const AVG_CHAR_RATIO = 0.52; // Regular
-const PADDING = 8;
+const AVG_CHAR_RATIO = 0.62; // Inter runs wider than 0.52; conservative estimate reduces overflow
+const PADDING = 10;
 
 function wrapText(text: string, fontSize: number, maxWidth: number): string[] {
-  const words    = text.split(/\s+/);
-  const charW    = fontSize * AVG_CHAR_RATIO;
+  // Treat '/' as a break opportunity: "Posted/updated" → ["Posted/", "updated"]
+  const rawWords = text.split(/\s+/);
+  const words: string[] = [];
+  for (const w of rawWords) {
+    const parts = w.split('/');
+    parts.forEach((p, i) => {
+      if (p) words.push(i < parts.length - 1 ? p + '/' : p);
+    });
+  }
+
+  const charW = fontSize * AVG_CHAR_RATIO;
   const lines: string[] = [];
   let current = '';
 
@@ -80,30 +91,32 @@ function wrapText(text: string, fontSize: number, maxWidth: number): string[] {
   return lines;
 }
 
-function fitsInCell(lines: string[], fontSize: number, cellH: number): boolean {
+function fitsInCell(lines: string[], fontSize: number, cellW: number, cellH: number): boolean {
+  const charW      = fontSize * AVG_CHAR_RATIO;
   const lineHeight = fontSize * 1.3;
-  return lines.length * lineHeight <= cellH - PADDING * 2;
+  const maxW       = cellW - PADDING * 2;
+  if (lines.length * lineHeight > cellH - PADDING * 2) return false;
+  return lines.every(l => l.length * charW <= maxW);
 }
 
 function fitText(text: string, cellW: number, cellH: number): { lines: string[]; fontSize: number } {
-  let fontSize = Math.floor(cellH * 0.28);
-  const minSize = 24;
+  let fontSize = Math.floor(cellH * 0.22);
+  const minSize = 16;
   const maxW    = cellW - PADDING * 2;
 
   while (fontSize >= minSize) {
     const lines = wrapText(text, fontSize, maxW);
-    if (fitsInCell(lines, fontSize, cellH)) return { lines, fontSize };
+    if (fitsInCell(lines, fontSize, cellW, cellH)) return { lines, fontSize };
     fontSize -= 2;
   }
 
   // At floor — truncate if needed
   let lines = wrapText(text, minSize, maxW);
-  while (!fitsInCell(lines, minSize, cellH) && lines.length > 1) {
+  while (!fitsInCell(lines, minSize, cellW, cellH) && lines.length > 1) {
     lines.pop();
   }
-  if (!fitsInCell(lines, minSize, cellH)) {
-    // Truncate last line with ellipsis
-    const charsPerLine = Math.floor((cellW - PADDING * 2) / (minSize * AVG_CHAR_RATIO));
+  if (!fitsInCell(lines, minSize, cellW, cellH)) {
+    const charsPerLine = Math.floor(maxW / (minSize * AVG_CHAR_RATIO));
     lines = [text.slice(0, charsPerLine - 1) + '…'];
   }
   return { lines, fontSize: minSize };
@@ -118,9 +131,7 @@ function cellSvg(
   const stroke = isFree ? PALETTE.accent   : PALETTE.border;
   const fgColor = isFree ? PALETTE.accentFg : PALETTE.text;
 
-  const { lines, fontSize } = isFree
-    ? { lines: [text], fontSize: Math.floor(h * 0.28) }
-    : fitText(text, w, h);
+  const { lines, fontSize } = fitText(text, w, h);
 
   const lineHeight  = fontSize * 1.3;
   const totalHeight = lines.length * lineHeight;
@@ -150,28 +161,43 @@ function escSvg(s: string): string {
 
 // ── Build SVG ─────────────────────────────────────────────────────────────────
 function buildSvg(cells: string[], cfg: typeof CARD_CONFIGS.mini): string {
-  const { cols, rows, canvasW, canvasH, margin, freeIdx } = cfg;
-  const gridW  = canvasW - margin * 2;
-  const gridH  = canvasH - margin * 2;
-  const cellW  = Math.floor((gridW - GAP * (cols - 1)) / cols);
-  const cellH  = Math.floor((gridH - GAP * (rows - 1)) / rows);
+  const { cols, rows, canvasW, margin, freeIdx } = cfg;
+
+  // Square cells: size driven by available width
+  const cellSize = Math.floor((canvasW - margin * 2 - GAP * (cols - 1)) / cols);
+  const gridW    = cols * cellSize + GAP * (cols - 1);
+  const gridH    = rows * cellSize + GAP * (rows - 1);
+
+  // Canvas height fits the grid exactly with equal top/bottom margins
+  const canvasH  = margin + gridH + margin;
+
+  // Center grid horizontally (accounts for rounding)
+  const gridStartX = Math.floor((canvasW - gridW) / 2);
+  const gridStartY = margin;
+
   const freeText = Deno.env.get('FREE_CELL_TEXT') || 'FREE';
 
   let rects = '';
-  let idx   = 0; // index into cells array
+  let idx   = 0;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const pos  = r * cols + c;
-      const x    = margin + c * (cellW + GAP);
-      const y    = margin + r * (cellH + GAP);
+      const pos    = r * cols + c;
+      const x      = gridStartX + c * (cellSize + GAP);
+      const y      = gridStartY + r * (cellSize + GAP);
       const isFree = pos === freeIdx;
-      const text = isFree ? freeText : (cells[idx++] ?? '');
-      rects += cellSvg(x, y, cellW, cellH, text, isFree);
+      const text   = isFree ? freeText : (cells[idx++] ?? '');
+      rects += cellSvg(x, y, cellSize, cellSize, text, isFree);
     }
   }
 
+  const titleFontSize = Math.floor(margin * 0.55);
+  const titleY        = Math.floor(margin * 0.68);
+
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}">
   <rect width="${canvasW}" height="${canvasH}" fill="${PALETTE.bg}"/>
+  <text x="${canvasW / 2}" y="${titleY}"
+        font-family="Inter Bold, NotoSans" font-size="${titleFontSize}" font-weight="bold"
+        fill="${PALETTE.text}" text-anchor="middle">Violetshipping Commenting Bingo</text>
   ${rects}
 </svg>`;
 }
@@ -299,6 +325,28 @@ serve(async (req) => {
           error_message:     null,
         })
         .eq('id', submissionId);
+
+      // Auto-send: fetch stored Tumblr token and call send-card
+      const { data: tokenRow } = await svcClient
+        .from('settings')
+        .select('value')
+        .eq('key', 'tumblr_token')
+        .maybeSingle();
+
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+      await fetch(`${supabaseUrl}/functions/v1/send-card`, {
+        method: 'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({
+          submission_id: submissionId,
+          ...(tokenRow?.value ? { tumblr_token: tokenRow.value } : {}),
+        }),
+      });
 
       return jsonResp({ ok: true });
     } catch (err) {

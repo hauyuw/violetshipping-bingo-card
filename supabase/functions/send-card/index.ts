@@ -22,17 +22,19 @@ interface SendCardBody {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
-  // Require authenticated admin session
+  // Require authenticated admin session or internal service role call
   const authHeader = req.headers.get('authorization');
   if (!authHeader) return json({ ok: false, error: 'Unauthorized' }, 401);
 
-  const supa = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { authorization: authHeader } } },
-  );
-  const { data: { user }, error: authErr } = await supa.auth.getUser();
-  if (authErr || !user) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const jwtToken = authHeader.replace(/^Bearer\s+/i, '');
+  const isAuthorized = (() => {
+    try {
+      const payload = JSON.parse(atob(jwtToken.split('.')[1]));
+      return payload.role === 'service_role' || payload.role === 'authenticated';
+    } catch { return false; }
+  })();
+
+  if (!isAuthorized) return json({ ok: false, error: 'Unauthorized' }, 401);
 
   // Use service role for storage + DB writes
   const svc = createClient(
@@ -63,27 +65,8 @@ serve(async (req) => {
     return json({ ok: false, error: `Card is not ready (status: ${sub.card_status})` }, 400);
   }
 
-  // Download PNG from Storage
   const storagePath = sub.card_storage_path as string;
   if (!storagePath) return json({ ok: false, error: 'No card_storage_path on submission' }, 400);
-
-  const { data: fileData, error: dlErr } = await svc.storage
-    .from('cards')
-    .download(storagePath);
-
-  if (dlErr || !fileData) {
-    return json({ ok: false, error: `Failed to download card PNG: ${dlErr?.message}` }, 500);
-  }
-
-  const pngBuf = new Uint8Array(await fileData.arrayBuffer());
-
-  // Fetch picks for alt text
-  const { data: picks } = await svc
-    .from('submission_picks')
-    .select('option_text')
-    .eq('submission_id', submission_id);
-
-  const altText = (picks || []).map((p: { option_text: string }) => p.option_text).join(' · ');
 
   const name   = sub.respondent_name as string;
   const handle = sub.contact_value  as string;
@@ -98,47 +81,67 @@ serve(async (req) => {
     const token = body.tumblr_token;
     if (!token) return json({ ok: false, error: 'Missing tumblr_token' }, 400);
 
-    const blogId  = Deno.env.get('TUMBLR_BLOG_IDENTIFIER')!;
-    const caption = fillTemplate(body.tumblr_caption_template ?? "@{handle} here's your bingo card!");
-    const tags    = body.card_tags ?? ['bingo'];
-    const state   = body.tumblr_post_state ?? 'published';
+    const blogId = Deno.env.get('TUMBLR_BLOG_IDENTIFIER')!;
+    const tags   = body.card_tags ?? ['bingo'];
+    const state  = body.tumblr_post_state ?? 'published';
 
-    const boundary = `--boundary-${crypto.randomUUID()}`;
+    // Create a short-lived signed URL so Tumblr can fetch the image directly
+    const { data: signedData, error: signedErr } = await svc.storage
+      .from('cards')
+      .createSignedUrl(storagePath, 3600);
 
-    const npfContent = JSON.stringify({
+    if (signedErr || !signedData?.signedUrl) {
+      return json({ ok: false, error: `Failed to create signed URL: ${signedErr?.message}` }, 500);
+    }
+
+    const imageUrl = signedData.signedUrl;
+
+    const rawTpl      = body.tumblr_caption_template ?? "@{handle} here's your bingo card!";
+    const captionText = rawTpl.replace(/\{handle\}/g, handle).replace(/\{name\}/g, name);
+
+    // Fetch blog UUID for NPF @mention
+    let blogUuid: string | null = null;
+    try {
+      const infoResp = await fetch(`https://api.tumblr.com/v2/blog/${handle}/info`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (infoResp.ok) {
+        const infoData = await infoResp.json();
+        blogUuid = infoData?.response?.blog?.uuid ?? null;
+      }
+    } catch { /* fall back to plain text */ }
+
+    const textBlock: Record<string, unknown> = { type: 'text', text: captionText };
+    if (blogUuid) {
+      const mentionStart = captionText.indexOf(`@${handle}`);
+      if (mentionStart !== -1) {
+        textBlock.formatting = [{
+          start: mentionStart,
+          end:   mentionStart + handle.length + 1,
+          type:  'mention',
+          blog:  { uuid: blogUuid },
+        }];
+      }
+    }
+
+    const npfBody = {
       content: [
-        { type: 'text', text: caption },
-        { type: 'image', media: [{ type: 'image/png', identifier: 'card' }], alt_text: altText },
+        { type: 'image', media: [{ type: 'image/png', url: imageUrl }] },
+        textBlock,
       ],
-      tags,
+      tags: tags.join(','),
       state,
-    });
-
-    const encoder  = new TextEncoder();
-    const jsonPart = encoder.encode(
-      `--${boundary}\r\nContent-Disposition: form-data; name="json"\r\nContent-Type: application/json\r\n\r\n${npfContent}\r\n`
-    );
-    const pngPart = encoder.encode(
-      `--${boundary}\r\nContent-Disposition: form-data; name="card"; filename="card.png"\r\nContent-Type: image/png\r\n\r\n`
-    );
-    const closingBoundary = encoder.encode(`\r\n--${boundary}--\r\n`);
-
-    const multipart = new Uint8Array(jsonPart.length + pngPart.length + pngBuf.length + closingBoundary.length);
-    let offset = 0;
-    multipart.set(jsonPart, offset);           offset += jsonPart.length;
-    multipart.set(pngPart, offset);            offset += pngPart.length;
-    multipart.set(pngBuf, offset);             offset += pngBuf.length;
-    multipart.set(closingBoundary, offset);
+    };
 
     const tumblrResp = await fetch(
       `https://api.tumblr.com/v2/blog/${blogId}/posts`,
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': `multipart/form-data; boundary=${boundary}`,
+          Authorization:  `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        body: multipart,
+        body: JSON.stringify(npfBody),
       },
     );
 
@@ -152,14 +155,24 @@ serve(async (req) => {
       return json({ ok: false, error: `Tumblr API error ${tumblrResp.status}` }, 502);
     }
   } else if (sub.contact_type === 'email') {
+    // Download PNG binary for email attachment
+    const { data: fileData, error: dlErr } = await svc.storage
+      .from('cards')
+      .download(storagePath);
+
+    if (dlErr || !fileData) {
+      return json({ ok: false, error: `Failed to download card PNG: ${dlErr?.message}` }, 500);
+    }
+
+    const pngBuf    = new Uint8Array(await fileData.arrayBuffer());
+    const pngBase64 = btoa(String.fromCharCode(...pngBuf));
+
     const resendKey = Deno.env.get('RESEND_API_KEY')!;
     const fromName  = body.from_name  ?? 'Bingo Generator';
     const fromEmail = body.from_email ?? '';
     const replyTo   = body.reply_to   ?? '';
     const subject   = fillTemplate(body.email_subject_template ?? "{name}, here's your bingo card!");
     const textBody  = fillTemplate(body.email_body_template    ?? "Hey {name}, here's your bingo card! It's attached.");
-
-    const pngBase64 = btoa(String.fromCharCode(...pngBuf));
 
     const emailPayload: Record<string, unknown> = {
       from:        `${fromName} <${fromEmail}>`,

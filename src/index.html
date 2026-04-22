@@ -59,9 +59,12 @@
         </fieldset>
         <div style="margin-top: 0.75rem;">
           <label for="contact-input" id="contact-label">Your Tumblr handle</label>
-          <input type="text" id="contact-input" name="contact_value"
-                 maxlength="120" required autocomplete="off"
-                 placeholder="your-tumblr-handle">
+          <div class="input-prefix-group">
+            <span class="input-prefix" id="contact-prefix">@</span>
+            <input type="text" id="contact-input" name="contact_value"
+                   maxlength="120" required autocomplete="off"
+                   placeholder="your-tumblr-handle">
+          </div>
           <p class="field-error" id="contact-error" role="alert"></p>
         </div>
       </div>

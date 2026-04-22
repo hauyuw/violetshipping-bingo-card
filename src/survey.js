@@ -87,6 +87,7 @@
         chk.value = opt.id;
         chk.dataset.questionId = q.id;
         chk.dataset.optionText = opt.text;
+        chk.checked = true;
         chk.addEventListener('change', updatePicksCounter);
 
         lbl.appendChild(chk);
@@ -213,27 +214,26 @@
 
     const supa = window.supabaseClient;
 
+    const submissionId = crypto.randomUUID();
+
     // Insert submission
-    const { data: subData, error: subErr } = await supa
+    const { error: subErr } = await supa
       .from('submissions')
       .insert({
+        id:              submissionId,
         respondent_name: name,
         contact_type:    contactType,
         contact_value:   contactVal,
         card_size:       size,
-      })
-      .select('id')
-      .single();
+      });
 
-    if (subErr || !subData) {
+    if (subErr) {
       submitErr.textContent = 'Something went wrong. Please try again.';
       submitErr.style.display = 'block';
       submitBtn.disabled = false;
       submitBtn.textContent = 'Submit & Get My Card';
       return;
     }
-
-    const submissionId = subData.id;
 
     // Build picks rows
     const checked = document.querySelectorAll('input[type="checkbox"][data-question-id]:checked');
@@ -272,6 +272,7 @@
     const radios    = document.querySelectorAll('input[name="contact_type"]');
     const input     = document.getElementById('contact-input');
     const labelEl   = document.getElementById('contact-label');
+    const prefix    = document.getElementById('contact-prefix');
 
     function applyContactType(type) {
       if (type === 'email') {
@@ -279,11 +280,13 @@
         input.placeholder = 'you@example.com';
         labelEl.textContent = 'Your email address';
         input.autocomplete  = 'email';
+        if (prefix) prefix.style.display = 'none';
       } else {
         input.type        = 'text';
         input.placeholder = 'your-tumblr-handle';
         labelEl.textContent = 'Your Tumblr handle';
         input.autocomplete  = 'off';
+        if (prefix) prefix.style.display = '';
       }
     }
 
@@ -299,6 +302,7 @@
   // ── Init ──────────────────────────────────────────────────────────────────
 
   function init() {
+    window.supabaseClient.auth.signOut();
     renderQuestions();
     setupContactToggle();
     updatePicksCounter();

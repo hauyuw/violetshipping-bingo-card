@@ -65,9 +65,26 @@ create policy "admin read submissions" on public.submissions
   for select to authenticated using (true);
 create policy "admin read picks" on public.submission_picks
   for select to authenticated using (true);
+
+-- Settings (stores Tumblr token for auto-send)
+create table public.settings (
+  key   text primary key,
+  value text not null
+);
+alter table public.settings enable row level security;
+create policy "admin manage settings" on public.settings
+  for all to authenticated using (true) with check (true);
 ```
 
 3. Go to **Storage → New bucket**. Name it `cards`, leave it **private**.
+4. In **SQL Editor**, run the following to allow the admin to read cards:
+
+```sql
+CREATE POLICY "admin read cards"
+  ON storage.objects FOR SELECT
+  TO authenticated
+  USING (bucket_id = 'cards');
+```
 
 ### 2. Admin user
 
@@ -75,10 +92,11 @@ In Supabase dashboard: **Authentication → Users → Add user**. Enter your ema
 
 ### 3. Fonts
 
-Download these fonts and place them in `supabase/functions/generate-card/`:
-
-- **Inter-Regular.ttf** and **Inter-Bold.ttf** — from [Google Fonts](https://fonts.google.com/specimen/Inter) (click "Download family", unzip, find the TTF files in the `static/` folder).
-- **NotoSans-Regular.ttf** — from [Google Fonts](https://fonts.google.com/noto/specimen/Noto+Sans) (download family, find the Regular weight TTF).
+1. Download these fonts:
+   - **Inter-Regular.ttf** and **Inter-Bold.ttf** — from [Google Fonts](https://fonts.google.com/specimen/Inter) (click "Download family", unzip, find the TTF files in the `static/` folder).
+   - **NotoSans-Regular.ttf** — from [Google Fonts](https://fonts.google.com/noto/specimen/Noto+Sans) (download family, find the Regular weight TTF).
+2. In Supabase dashboard → **Storage → New bucket**. Name it `fonts`, set it to **public**.
+3. Upload all three TTF files into the `fonts` bucket.
 
 ### 4. Tumblr app
 
@@ -117,10 +135,12 @@ Install the [Supabase CLI](https://supabase.com/docs/guides/cli), then:
 ```bash
 supabase login
 supabase link --project-ref your-project-ref
-supabase functions deploy generate-card
-supabase functions deploy send-card
-supabase functions deploy tumblr-token-exchange
+supabase functions deploy generate-card --no-verify-jwt
+supabase functions deploy send-card --no-verify-jwt
+supabase functions deploy tumblr-token-exchange --no-verify-jwt
 ```
+
+> The `--no-verify-jwt` flag is required for projects using ES256 JWT signing (all projects created after mid-2024). Without it the functions return an `UNAUTHORIZED_UNSUPPORTED_TOKEN_ALGORITHM` error.
 
 ### 8. DB Webhook
 
@@ -182,11 +202,12 @@ Share the URL with your audience. They fill in their name, contact method (Tumbl
 ### Admin dashboard (`admin.html`)
 
 1. Log in with the email/password you created in step 2.
-2. Click **Connect Tumblr** if you want to deliver via Tumblr. Complete the OAuth flow.
-3. The submissions table shows all submissions. Cards in `generating` status are being processed by the Edge Function (usually within a few seconds of submission).
-4. Once a card is `ready`, click **Preview** to view it, then **Send** to deliver it.
-5. If a card is stuck in `generating` for more than 2 minutes, click **Regenerate**.
-6. Use **Delete PNG** to remove a card from storage and reset the row to `pending` so it can be regenerated.
+2. Click **Connect Tumblr** and complete the OAuth flow. This saves the token server-side so cards are delivered automatically — you only need to do this once (or again if the token expires).
+3. The submissions table shows all submissions. Cards are generated and sent automatically after submission — you should see them arrive at `sent` status without any manual action.
+4. If a card is stuck in `generating` for more than 2 minutes, click **Regenerate**.
+5. If auto-send fails, the card stays at `ready` — click **Send** to deliver it manually.
+6. Click **Preview** to view a card PNG before or after sending.
+7. Use **Delete PNG** to remove a card from storage and reset the row to `pending` so it can be regenerated.
 
 ---
 

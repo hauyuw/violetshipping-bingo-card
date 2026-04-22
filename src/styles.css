@@ -186,6 +186,33 @@ input[type="checkbox"] {
   cursor: pointer;
 }
 
+/* ── Input prefix group ────────────────────────────────────────────────────── */
+.input-prefix-group {
+  display: flex;
+  align-items: stretch;
+}
+
+.input-prefix {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-right: none;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 1rem;
+  padding: 0.6rem 0.6rem 0.6rem 0.75rem;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.input-prefix-group input {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.input-prefix-group input:focus { border-color: var(--accent); }
+.input-prefix-group:focus-within .input-prefix { border-color: var(--accent); }
+
 /* ── Honeypot ──────────────────────────────────────────────────────────────── */
 .honeypot {
   position: absolute;

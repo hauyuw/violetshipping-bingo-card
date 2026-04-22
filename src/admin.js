@@ -418,7 +418,9 @@
   }
 
   async function finishTumblrOAuth(code, returnedState) {
+    console.log('[tumblr] finishTumblrOAuth called');
     const stored = JSON.parse(sessionStorage.getItem('tumblr_pkce') || '{}');
+    console.log('[tumblr] stored pkce:', stored, 'returnedState:', returnedState);
     if (!stored.verifier || stored.state !== returnedState) {
       alert('OAuth state mismatch. Please try connecting again.');
       return;
@@ -428,6 +430,7 @@
 
     const redirectUri = window.location.origin + window.location.pathname;
     const { data: { session } } = await window.supabaseClient.auth.getSession();
+    console.log('[tumblr] session present:', !!session);
 
     let result;
     try {
@@ -443,6 +446,7 @@
         }
       );
       result = await resp.json();
+      console.log('[tumblr] token exchange result:', result);
     } catch (err) {
       alert(`Tumblr connection failed: ${err.message}`);
       return;
@@ -455,6 +459,12 @@
 
     localStorage.setItem('tumblr_token', result.access_token);
     localStorage.setItem('tumblr_blog_name', result.primary_blog_name || '');
+
+    const { error: settingsErr } = await window.supabaseClient
+      .from('settings')
+      .upsert({ key: 'tumblr_token', value: result.access_token });
+
+    if (settingsErr) console.error('Failed to save Tumblr token to settings:', settingsErr.message);
 
     // Clean URL
     window.history.replaceState({}, '', window.location.pathname);
@@ -497,9 +507,9 @@
   }
 
   function showDashboard() {
-    document.getElementById('session-loading').style.display  = 'none';
-    document.getElementById('login-section').style.display    = 'none';
-    document.getElementById('dashboard-section').style.display = '';
+    document.getElementById('session-loading').style.display   = 'none';
+    document.getElementById('login-section').style.display     = 'none';
+    document.getElementById('dashboard-section').style.display = 'block';
   }
 
   async function handleLogin(e) {
@@ -541,11 +551,12 @@
     });
 
     const connectBtn = document.getElementById('tumblr-connect-btn');
-    connectBtn.addEventListener('click', () => {
+    connectBtn.addEventListener('click', async () => {
       if (localStorage.getItem('tumblr_token')) {
         // Already connected — clicking again starts reconnect
         localStorage.removeItem('tumblr_token');
         localStorage.removeItem('tumblr_blog_name');
+        await window.supabaseClient.from('settings').delete().eq('key', 'tumblr_token');
       }
       startTumblrOAuth();
     });
