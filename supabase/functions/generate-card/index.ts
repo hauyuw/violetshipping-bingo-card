@@ -159,7 +159,7 @@ function cellSvg(
   const startY      = y + (size - totalHeight) / 2 + fontSize * 0.85;
 
   // FREE cell: Cinzel Bold (display font). Body cells: Inter + NotoSans fallback.
-  const fontFamily = isFree ? 'Cinzel Bold, NotoSans' : 'Raleway, Inter, NotoSans';
+  const fontFamily = isFree ? 'Cinzel, NotoSans' : 'Raleway, Inter, NotoSans';
   const fontWeight = isFree ? 'bold' : 'normal';
 
   let tspans = '';
