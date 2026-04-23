@@ -4,7 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex,nofollow">
-  <title>Bingo Card Generator</title>
+  <title>Bingo Card Generator — Violetshipping Commenting Bingo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -15,9 +18,18 @@
   </noscript>
 
   <div class="page-wrapper">
+
+    <nav class="site-nav">
+      <a href="index.html" class="active">Get a Card</a>
+      <a href="about.html">About</a>
+    </nav>
+
     <header class="page-header">
       <div id="logo" class="logo-slot"><!-- drop your <img> or SVG here --></div>
-      <h1>Get Your Bingo Card</h1>
+      <p class="hero-eyebrow">Kaiba ✦ Jounouchi</p>
+      <h1>Get Your<br><span class="hero-gradient">Bingo Card</span></h1>
+      <p class="hero-subtitle">Fill in your picks below and we'll generate your card.</p>
+      <div class="hero-divider"><div class="hero-divider-gem"></div></div>
     </header>
 
     <!-- Thank-you view (hidden until submit) -->
@@ -104,6 +116,11 @@
       <div id="submit-error" class="form-error" style="display:none;" role="alert"></div>
       <button type="submit" class="btn" id="submit-btn">Submit &amp; Get My Card</button>
     </form>
+
+    <footer class="site-footer">
+      Violetshipping Commenting Bingo ✦ Kaiba &amp; Jounouchi
+    </footer>
+
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
