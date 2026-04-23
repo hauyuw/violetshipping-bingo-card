@@ -4,129 +4,250 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex,nofollow">
-  <title>Bingo Card Generator — Violetshipping Commenting Bingo</title>
+  <title>About — Violetshipping Commenting Bingo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <noscript>
-    <div class="noscript-banner">
-      This site needs JavaScript. Please enable it to continue.
-    </div>
-  </noscript>
-
-  <div class="page-wrapper">
+  <div class="page">
 
     <nav class="site-nav">
       <a href="https://alecto.neocities.org/">Home</a>
-      <a href="about.html">About</a>
-      <a href="index.html" class="active">Get a Card</a>
+      <a href="index.html" class="active">About</a>
+      <a href="card.html">Get a Card</a>
     </nav>
 
-    <header class="page-header">
-      <div id="logo" class="logo-slot"><!-- drop your <img> or SVG here --></div>
+    <!-- Hero -->
+    <header class="page-header section">
       <p class="hero-eyebrow">Kaiba ✦ Jounouchi</p>
-      <h1>Get Your<br><span class="hero-gradient">Bingo Card</span></h1>
-      <p class="hero-subtitle">Fill in your picks below and we'll generate your card.</p>
+      <h1>Violetshipping<br><span>Commenting Bingo</span></h1>
+      <p class="hero-subtitle">A fan challenge to read, connect, and spread a little love.</p>
       <div class="hero-divider"><div class="hero-divider-gem"></div></div>
     </header>
 
-    <!-- Thank-you view (hidden until submit) -->
-    <div id="thank-you" aria-live="polite">
-      <div class="card">
-        <p class="thankyou-heading">Thanks for submitting! Your bingo card will be sent to your Tumblr / email shortly.</p>
-        <div id="picks-summary" class="picks-summary"></div>
+    <!-- Purpose -->
+    <section class="section">
+      <p class="section-label">The Mission</p>
+      <div class="purpose-card">
+        <p>This event exists to bolster community between like-minded fans of violetshipping, encourage new connections and friendships, practice and build a habit for comment writing, support fellow fans and creatives — and most of all, to make someone, including yourself, smile.</p>
       </div>
-    </div>
+    </section>
 
-    <!-- Survey form -->
-    <form id="survey-form" class="card" novalidate>
-      <!-- Honeypot: hidden from real users, caught bots fill this -->
-      <input type="text" name="website" id="hp-website" autocomplete="off"
-             tabindex="-1" aria-hidden="true" class="honeypot">
-
-      <!-- Name -->
-      <div class="form-section">
-        <label for="respondent-name">Your name <span aria-hidden="true">*</span></label>
-        <input type="text" id="respondent-name" name="respondent_name"
-               maxlength="80" required autocomplete="name">
-        <p class="field-error" id="name-error" role="alert"></p>
+    <!-- How to Play -->
+    <section class="section">
+      <p class="section-label">How It Works</p>
+      <h2>How to Play</h2>
+      <div class="step-grid">
+        <div class="step-card">
+          <div class="step-num">01</div>
+          <p>Request a bingo card. Choose your size and which category squares you want included.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">02</div>
+          <p>Find a violetshipping fanfic that fits a square's category. Read it and leave a comment.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">03</div>
+          <p>Mark off the square. Cover a line vertically, horizontally, or diagonally for <strong>BINGO</strong> — or fill the whole card for a <strong>BLACKOUT</strong>!</p>
+        </div>
       </div>
+    </section>
 
-      <!-- Contact type -->
-      <div class="form-section">
-        <fieldset id="contact-type-fieldset">
-          <legend>How should we send your card? <span aria-hidden="true">*</span></legend>
-          <div class="radio-group">
-            <label>
-              <input type="radio" name="contact_type" value="tumblr" checked>
-              Tumblr — I'll get a post @mentioning me
-            </label>
-            <label>
-              <input type="radio" name="contact_type" value="email">
-              Email — send it to my inbox
-            </label>
-          </div>
-        </fieldset>
-        <div style="margin-top: 0.75rem;">
-          <label for="contact-input" id="contact-label">Your Tumblr handle</label>
-          <div class="input-prefix-group">
-            <span class="input-prefix" id="contact-prefix">@</span>
-            <input type="text" id="contact-input" name="contact_value"
-                   maxlength="120" required autocomplete="off"
-                   placeholder="your-tumblr-handle">
-          </div>
-          <p class="field-error" id="contact-error" role="alert"></p>
+    <!-- Card Sizes -->
+    <section class="section">
+      <p class="section-label">Card Formats</p>
+      <h2>Card Sizes</h2>
+      <p>You can request as many cards of any type as you like. It's recommended to finish one before requesting another, but there are no hard limits.</p>
+      <table class="size-table">
+        <thead>
+          <tr>
+            <th>Size</th>
+            <th>Grid</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Nano</td>
+            <td>1 × 3</td>
+            <td>A compact banner format — no <span class="badge-free">Free Space ✦</span>, just three squares to fill.</td>
+          </tr>
+          <tr>
+            <td>Mini</td>
+            <td>3 × 3</td>
+            <td>The classic grid with a <span class="badge-free">Free Space ✦</span> center square.</td>
+          </tr>
+          <tr>
+            <td>Standard</td>
+            <td>5 × 5</td>
+            <td>The full experience. <span class="badge-free">Free Space ✦</span> center square. Needs 24 picks minimum.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Categories -->
+    <section class="section">
+      <p class="section-label">Square Categories</p>
+      <h2>What's on the Card</h2>
+      <p>All categories are purposefully broad — apply the criteria as liberally as you choose. Before requesting a card you can opt out of any category (e.g. exclude Smut/PWP for an all-SFW card).</p>
+      <div class="category-grid">
+        <div class="category-block">
+          <h3>Canon Continuity</h3>
+          <ul class="category-list">
+            <li>Alternate Universe (Supernatural, Fantasy, Sci-Fi, Historical, No Millennium Items)</li>
+            <li>Crossover / Fusions</li>
+            <li>Pre-Canon &amp; Post-Canon</li>
+            <li>Season 0 / Early Manga</li>
+            <li>Duelist Kingdom &amp; Battle City</li>
+            <li>Canon Divergence</li>
+          </ul>
+        </div>
+        <div class="category-block">
+          <h3>Fic Metadata</h3>
+          <ul class="category-list">
+            <li>Zero comments or &lt;10 comments</li>
+            <li>Short (≤1k / ≤5k / ≤10k words)</li>
+            <li>Long (≥10k words)</li>
+            <li>Posted recently or long ago</li>
+            <li>Posted before 2020 / 2015 / 2010</li>
+            <li>WIP, multichapter, or oneshot</li>
+            <li>Not posted on AO3</li>
+          </ul>
+        </div>
+        <div class="category-block">
+          <h3>AO3 Specific</h3>
+          <ul class="category-list">
+            <li>By Anonymous</li>
+            <li>Archive-locked fic</li>
+            <li>Major Character Death</li>
+            <li>Graphic Violence</li>
+            <li>Rape / Non-con</li>
+            <li>Underage Sex</li>
+          </ul>
+        </div>
+        <div class="category-block">
+          <h3>Tropes &amp; Themes</h3>
+          <ul class="category-list">
+            <li>Pining, Slow burn, Fake relationship</li>
+            <li>Soulmates, Omegaverse, Bodyguard</li>
+            <li>Getting together, Established relationship</li>
+            <li>Proposals, Love confession, Past lives</li>
+            <li>Holidays, Birthdays, Cooking</li>
+            <li>LGBTQ+ themes, MPreg, Break-up</li>
+            <li>Dragons, Dueling, Time travel</li>
+          </ul>
+        </div>
+        <div class="category-block">
+          <h3>Genres</h3>
+          <ul class="category-list">
+            <li>Humor / Crack</li>
+            <li>Romance / Romcom</li>
+            <li>Fluff</li>
+            <li>Whump or Hurt/Comfort</li>
+            <li>Angst / Tragedy</li>
+            <li>Horror</li>
+            <li>Smut / PWP</li>
+          </ul>
         </div>
       </div>
 
-      <!-- Card size -->
-      <div class="form-section">
-        <fieldset>
-          <legend>Card size</legend>
-          <div class="radio-group" id="size-radios">
-            <label>
-              <input type="radio" name="card_size" value="nano">
-              Nano — 1&times;3 banner
-            </label>
-            <label>
-              <input type="radio" name="card_size" value="mini" checked>
-              Mini — 3&times;3 grid with FREE center
-            </label>
-            <label>
-              <input type="radio" name="card_size" value="standard">
-              Standard — 5&times;5 grid with FREE center
-            </label>
+      <div class="hard-mode-box">
+        <h3>Hard Mode — Optional Add-ons</h3>
+        <p>Not category squares, but modifiers you can apply as many times as you like for extra bragging rights.</p>
+        <div class="hard-mode-tags">
+          <span class="hard-mode-tag">Non-English language fic</span>
+          <span class="hard-mode-tag">Fandom meta</span>
+          <span class="hard-mode-tag">Artwork / Comics</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section">
+      <p class="section-label">Questions</p>
+      <h2>FAQ</h2>
+      <div class="faq-list">
+
+        <details>
+          <summary>What kind of comments should I write?</summary>
+          <div class="faq-body">
+            <p>Something nice and positive! A few sentences telling the author what you enjoyed is a great start. There's no minimum or maximum length — we're all adults, and no one is checking your work. This is your chance to connect with someone who decided to share their creativity with you.</p>
+            <p>If a fic doesn't vibe with you, find something positive you liked — or back out and find another. Constructive criticism is <strong>highly discouraged</strong> unless the author has explicitly invited it.</p>
           </div>
-        </fieldset>
-        <p class="picks-counter" id="picks-counter" aria-live="polite">
-          Picks: <span class="count" id="picks-count">0</span> / <span id="picks-needed">8</span> needed for Mini
-        </p>
-        <p class="field-error" id="picks-error" role="alert"></p>
-      </div>
+        </details>
 
-      <!-- Questions (rendered by survey.js) -->
-      <div class="form-section" id="questions-section">
-        <p class="loading" id="questions-loading">Loading questions…</p>
-        <div id="questions-container"></div>
-      </div>
+        <details>
+          <summary>Help — I don't know what to say!</summary>
+          <div class="faq-body">
+            <p>Commenting is a learned skill and it gets easier with practice. Here are some resources to help:</p>
+            <ul>
+              <li><a href="https://www.tumblr.com/glitterarygetsit/747186796597739520" target="_blank" rel="noopener">Why comment? Investing in your community</a></li>
+              <li><a href="https://www.tumblr.com/mromitosen/794684731526725632" target="_blank" rel="noopener">"Every Comment Counts" infographic</a></li>
+              <li><a href="https://dawnfelagund.tumblr.com/post/170618220828/101-comment-starters" target="_blank" rel="noopener">101 Comment Starters</a></li>
+              <li><a href="https://derinthescarletpescatarian.tumblr.com/post/681935406081671168" target="_blank" rel="noopener">The trick to leaving amazing comments (for nervous commenters)</a></li>
+              <li><a href="https://thebiballerina.tumblr.com/post/671760121756549120" target="_blank" rel="noopener">Fanfiction commenting guide</a></li>
+              <li><a href="https://longlivefeedback.tumblr.com/commentbuilder" target="_blank" rel="noopener">@longlivefeedback's comment builder spreadsheet</a></li>
+            </ul>
+          </div>
+        </details>
 
-      <!-- Submit -->
-      <div id="submit-error" class="form-error" style="display:none;" role="alert"></div>
-      <button type="submit" class="btn" id="submit-btn">Submit &amp; Get My Card</button>
-    </form>
+        <details>
+          <summary>What fics can I read?</summary>
+          <div class="faq-body">
+            <p>Any fic that primarily focuses on Kaiba and Jounouchi's relationship and fits the category of a square you're filling. No restrictions on rating, length, or platform — AO3, FF.net, Tumblr, Twitter/X, and other language archives all count.</p>
+            <p>You are responsible for curating your own reading experience. Be aware of your triggers and squicks and avoid fics accordingly. (<a href="https://archiveofourown.org/admin_posts/10851" target="_blank" rel="noopener">How to search AO3 tags →</a>)</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>One fic per square?</summary>
+          <div class="faq-body">
+            <p>Ideally yes — one fic and one comment per square, to spread the love to as many writers as possible. You can re-read and re-comment on a fic you've already commented on, though seeking out new fics is encouraged.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Do I have to report my comments or submit proof?</summary>
+          <div class="faq-body">
+            <p>No. This challenge runs entirely on the honor system. If you say you've filled a square, it's filled. You're encouraged (but not required) to rec any fics you enjoyed — sharing the love benefits everyone.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>What if I don't finish my card?</summary>
+          <div class="faq-body">
+            <p>No problem at all! Life happens. This is meant to be a fun challenge, not another source of stress. You don't need to report in if you choose not to finish.</p>
+          </div>
+        </details>
+
+      </div>
+    </section>
+
+    <!-- Rewards -->
+    <section class="section">
+      <p class="section-label">What You Get</p>
+      <h2>Rewards</h2>
+      <div class="rewards-row">
+        <div class="reward-chip"><span class="reward-icon">🏆</span> Bragging rights</div>
+        <div class="reward-chip"><span class="reward-icon">💜</span> New friends &amp; connections</div>
+        <div class="reward-chip"><span class="reward-icon">🎲</span> Possible raffle giveaway for completed cards — fan merch or kaijou doujinshi (US shipping only for now)</div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <div class="cta-section section">
+      <h2>Ready to Play?</h2>
+      <p>Request your bingo card and start spreading some comment love.</p>
+      <a href="card.html" class="btn">Get My Card</a>
+    </div>
 
     <footer class="site-footer">
       Violetshipping Commenting Bingo ✦ Kaiba &amp; Jounouchi
     </footer>
 
   </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="config.js"></script>
-  <script src="survey-data.js"></script>
-  <script src="survey.js"></script>
 </body>
 </html>
