@@ -13,9 +13,9 @@ async function ensureWasm() {
 
 // ── Card config ───────────────────────────────────────────────────────────────
 const CARD_CONFIGS = {
-  nano:     { cols: 3, rows: 1, canvasW: 1200, margin: 40, freeIdx: -1, titleArea: 120 },
-  mini:     { cols: 3, rows: 3, canvasW: 1275, margin: 75, freeIdx: 4, titleArea: 140 },
-  standard: { cols: 5, rows: 5, canvasW: 1275, margin: 75, freeIdx: 12, titleArea: 140 },
+  nano:     { cols: 3, rows: 1, canvasW: 1200, margin: 40, freeIdx: -1 },
+  mini:     { cols: 3, rows: 3, canvasW: 1275, margin: 75, freeIdx: 4  },
+  standard: { cols: 5, rows: 5, canvasW: 1275, margin: 75, freeIdx: 12 },
 };
 const MIN_PICKS = { nano: 3, mini: 8, standard: 24 };
 const GAP = 6;
@@ -31,6 +31,7 @@ const PALETTE = {
   textMuted:   '#c4b0e0',   // --text-muted (contrast-fixed)
   accent:      '#7c3aed',   // --accent-btn (darker, for filled cells)
   accentLight: '#a78bfa',   // --accent (for decorative strokes)
+  accent2:     '#d4b4fe',   // --accent-2
   accentFg:    '#ffffff',   // --accent-contrast
   gold:        '#e2b96a',   // --accent-gold (contrast-fixed)
   border:      '#3d2060',   // --border
@@ -49,7 +50,12 @@ async function getFontBuffers(): Promise<Uint8Array[]> {
     fetch(`${base}/NotoSansSymbols2-Regular.ttf`).then(r => r.arrayBuffer()).then(b => new Uint8Array(b)),
     fetch(`${base}/Cinzel-Bold.ttf`).then(r => r.arrayBuffer()).then(b => new Uint8Array(b)),
   ]);
-  fontBuffers = [regular, bold, noto, symbols, cinzel];
+  let raleway: Uint8Array | null = null;
+  try {
+    const r = await fetch(`${base}/Raleway-Regular.ttf`);
+    if (r.ok) raleway = new Uint8Array(await r.arrayBuffer());
+  } catch { /* Raleway not uploaded; cells fall back to Inter */ }
+  fontBuffers = raleway ? [regular, bold, noto, symbols, cinzel, raleway] : [regular, bold, noto, symbols, cinzel];
   return fontBuffers;
 }
 
@@ -153,7 +159,7 @@ function cellSvg(
   const startY      = y + (size - totalHeight) / 2 + fontSize * 0.85;
 
   // FREE cell: Cinzel Bold (display font). Body cells: Inter + NotoSans fallback.
-  const fontFamily = isFree ? 'Cinzel Bold, NotoSans' : 'Inter, NotoSans';
+  const fontFamily = isFree ? 'Cinzel Bold, NotoSans' : 'Raleway, Inter, NotoSans';
   const fontWeight = isFree ? 'bold' : 'normal';
 
   let tspans = '';
@@ -177,24 +183,23 @@ function escSvg(s: string): string {
 
 // ── Build SVG ─────────────────────────────────────────────────────────────────
 function buildSvg(cells: string[], cfg: typeof CARD_CONFIGS.mini): string {
-  const { cols, rows, canvasW, margin, freeIdx, titleArea } = cfg as typeof CARD_CONFIGS.mini & { titleArea: number };
+  const { cols, rows, canvasW, margin, freeIdx } = cfg;
 
-  // Title area reserve so the text never overlaps the grid.
-  const titleFontSize    = Math.floor(Math.min(60, Math.max(40, canvasW * 0.045)));
-  const titleAreaHeight  = Math.max(titleArea, Math.ceil(titleFontSize * 1.5));
-  const titleY           = margin + Math.floor(titleAreaHeight * 0.6);
+  const titleFontSize = Math.floor(Math.min(60, Math.max(40, canvasW * 0.045)));
+
+  // Vertical layout: "Violetshipping" → "Commenting Bingo" → gem divider → grid
+  const titleY1    = margin + titleFontSize;
+  const titleY2    = titleY1 + Math.round(titleFontSize * 1.18);
+  const dividerY   = Math.round(titleY2 + titleFontSize * 0.45);
+  const gridStartY = dividerY + 24;
 
   // Square cells: size driven by available width
   const cellSize = Math.floor((canvasW - margin * 2 - GAP * (cols - 1)) / cols);
   const gridW    = cols * cellSize + GAP * (cols - 1);
   const gridH    = rows * cellSize + GAP * (rows - 1);
+  const canvasH  = gridStartY + gridH + margin;
 
-  // Canvas height fits the grid with reserved title area and equal top/bottom margins
-  const canvasH  = margin + titleAreaHeight + gridH + margin;
-
-  // Center grid horizontally (accounts for rounding)
   const gridStartX = Math.floor((canvasW - gridW) / 2);
-  const gridStartY = margin + titleAreaHeight;
 
   const freeText = Deno.env.get('FREE_CELL_TEXT') || 'FREE';
 
@@ -223,28 +228,35 @@ function buildSvg(cells: string[], cfg: typeof CARD_CONFIGS.mini): string {
   }
 
   // Decorative gem + rule under the title (mirrors the site's hero-divider)
-  const dividerY    = Math.floor(titleY + titleFontSize * 0.45);
-  const gemSize     = 5;
-  const gemCx       = canvasW / 2;
-  const gemCy       = dividerY;
-  const ruleLen     = Math.floor(canvasW * 0.18);
-  const ruleGap     = 14;
+  const gemSize = 5;
+  const gemCx   = canvasW / 2;
+  const ruleLen = Math.floor(canvasW * 0.18);
+  const ruleGap = 14;
 
   const titleDecor = `
-  <line x1="${gemCx - ruleGap - ruleLen}" y1="${gemCy}" x2="${gemCx - ruleGap}" y2="${gemCy}"
+  <line x1="${gemCx - ruleGap - ruleLen}" y1="${dividerY}" x2="${gemCx - ruleGap}" y2="${dividerY}"
         stroke="${PALETTE.borderLight}" stroke-width="1" opacity="0.7"/>
-  <rect x="${gemCx - gemSize / 2}" y="${gemCy - gemSize / 2}"
+  <rect x="${gemCx - gemSize / 2}" y="${dividerY - gemSize / 2}"
         width="${gemSize}" height="${gemSize}"
-        fill="${PALETTE.accentLight}" transform="rotate(45 ${gemCx} ${gemCy})"/>
-  <line x1="${gemCx + ruleGap}" y1="${gemCy}" x2="${gemCx + ruleGap + ruleLen}" y2="${gemCy}"
+        fill="${PALETTE.accentLight}" transform="rotate(45 ${gemCx} ${dividerY})"/>
+  <line x1="${gemCx + ruleGap}" y1="${dividerY}" x2="${gemCx + ruleGap + ruleLen}" y2="${dividerY}"
         stroke="${PALETTE.borderLight}" stroke-width="1" opacity="0.7"/>`;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}">
+  <defs>
+    <linearGradient id="title-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="${PALETTE.accent2}"/>
+      <stop offset="100%" stop-color="${PALETTE.gold}"/>
+    </linearGradient>
+  </defs>
   <rect width="${canvasW}" height="${canvasH}" fill="${PALETTE.bg}"/>
   ${rects}
-  <text x="${canvasW / 2}" y="${titleY}"
+  <text x="${canvasW / 2}" y="${titleY1}"
         font-family="Cinzel Bold, NotoSans" font-size="${titleFontSize}" font-weight="bold"
-        fill="${PALETTE.text}" text-anchor="middle" letter-spacing="2">Violetshipping Commenting Bingo</text>
+        fill="${PALETTE.text}" text-anchor="middle" letter-spacing="2">Violetshipping</text>
+  <text x="${canvasW / 2}" y="${titleY2}"
+        font-family="Cinzel Bold, NotoSans" font-size="${titleFontSize}" font-weight="bold"
+        fill="url(#title-grad)" text-anchor="middle" letter-spacing="2">Commenting Bingo</text>
   ${titleDecor}
 </svg>`;
 }

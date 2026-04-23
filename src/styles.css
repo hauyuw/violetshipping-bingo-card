@@ -25,7 +25,7 @@
   --gap:       1rem;
 
   --font-display: 'Cinzel', Georgia, serif;
-  --font-body:    'Lora', Georgia, serif;
+  --font-body:    'Raleway', Arial, sans-serif;
 }
 
 /* ── Reset ─────────────────────────────────────────────────────────────────── */
@@ -94,6 +94,7 @@ a:hover { color: var(--text); }
   padding: 1.5rem 0;
   font-family: var(--font-display);
   font-size: 0.75rem;
+  font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -351,7 +352,8 @@ input[type="checkbox"] {
 /* ── Section label (eyebrow) ───────────────────────────────────────────────── */
 .section-label {
   font-family: var(--font-display);
-  font-size: 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--accent);
