@@ -180,7 +180,7 @@ function buildSvg(cells: string[], cfg: typeof CARD_CONFIGS.mini): string {
   const { cols, rows, canvasW, margin, freeIdx, titleArea } = cfg as typeof CARD_CONFIGS.mini & { titleArea: number };
 
   // Title area reserve so the text never overlaps the grid.
-  const titleFontSize    = Math.floor(Math.min(88, Math.max(60, canvasW * 0.065)));
+  const titleFontSize    = Math.floor(Math.min(60, Math.max(40, canvasW * 0.045)));
   const titleAreaHeight  = Math.max(titleArea, Math.ceil(titleFontSize * 1.5));
   const titleY           = margin + Math.floor(titleAreaHeight * 0.6);
 
