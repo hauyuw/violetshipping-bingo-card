@@ -185,7 +185,7 @@ function escSvg(s: string): string {
 function buildSvg(cells: string[], cfg: typeof CARD_CONFIGS.mini): string {
   const { cols, rows, canvasW, margin, freeIdx } = cfg;
 
-  const titleFontSize = Math.floor(Math.min(60, Math.max(40, canvasW * 0.045)));
+  const titleFontSize = Math.floor(Math.min(72, Math.max(48, canvasW * 0.055)));
 
   // Vertical layout: "Violetshipping" → "Commenting Bingo" → gem divider → grid
   const titleY1    = margin + titleFontSize;
@@ -252,10 +252,10 @@ function buildSvg(cells: string[], cfg: typeof CARD_CONFIGS.mini): string {
   <rect width="${canvasW}" height="${canvasH}" fill="${PALETTE.bg}"/>
   ${rects}
   <text x="${canvasW / 2}" y="${titleY1}"
-        font-family="Cinzel Bold, NotoSans" font-size="${titleFontSize}" font-weight="bold"
+        font-family="Cinzel, NotoSans" font-size="${titleFontSize}" font-weight="bold"
         fill="${PALETTE.text}" text-anchor="middle" letter-spacing="2">Violetshipping</text>
   <text x="${canvasW / 2}" y="${titleY2}"
-        font-family="Cinzel Bold, NotoSans" font-size="${titleFontSize}" font-weight="bold"
+        font-family="Cinzel, NotoSans" font-size="${titleFontSize}" font-weight="bold"
         fill="url(#title-grad)" text-anchor="middle" letter-spacing="2">Commenting Bingo</text>
   ${titleDecor}
 </svg>`;
