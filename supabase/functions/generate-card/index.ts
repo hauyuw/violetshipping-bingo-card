@@ -13,9 +13,9 @@ async function ensureWasm() {
 
 // ── Card config ───────────────────────────────────────────────────────────────
 const CARD_CONFIGS = {
-  nano:     { cols: 3, rows: 1, canvasW: 1200, margin: 40, freeIdx: -1 },
-  mini:     { cols: 3, rows: 3, canvasW: 1275, margin: 75, freeIdx: 4  },
-  standard: { cols: 5, rows: 5, canvasW: 1275, margin: 75, freeIdx: 12 },
+  nano:     { cols: 3, rows: 1, canvasW: 1200, margin: 40, freeIdx: -1, titleArea: 120 },
+  mini:     { cols: 3, rows: 3, canvasW: 1275, margin: 75, freeIdx: 4, titleArea: 140 },
+  standard: { cols: 5, rows: 5, canvasW: 1275, margin: 75, freeIdx: 12, titleArea: 140 },
 };
 const MIN_PICKS = { nano: 3, mini: 8, standard: 24 };
 const GAP = 6;
@@ -177,12 +177,12 @@ function escSvg(s: string): string {
 
 // ── Build SVG ─────────────────────────────────────────────────────────────────
 function buildSvg(cells: string[], cfg: typeof CARD_CONFIGS.mini): string {
-  const { cols, rows, canvasW, margin, freeIdx } = cfg;
+  const { cols, rows, canvasW, margin, freeIdx, titleArea } = cfg as typeof CARD_CONFIGS.mini & { titleArea: number };
 
   // Title area reserve so the text never overlaps the grid.
   const titleFontSize    = Math.floor(Math.min(88, Math.max(60, canvasW * 0.065)));
-  const titleAreaHeight  = Math.max(120, Math.ceil(titleFontSize * 1.55));
-  const titleY           = Math.floor(margin + titleAreaHeight / 2 + titleFontSize * 0.1);
+  const titleAreaHeight  = Math.max(titleArea, Math.ceil(titleFontSize * 1.5));
+  const titleY           = margin + Math.floor(titleAreaHeight * 0.6);
 
   // Square cells: size driven by available width
   const cellSize = Math.floor((canvasW - margin * 2 - GAP * (cols - 1)) / cols);
