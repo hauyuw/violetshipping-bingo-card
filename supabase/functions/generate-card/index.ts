@@ -22,14 +22,19 @@ const GAP = 6;
 const STROKE_W = 3;
 const RX = 8;
 
-// SVG palette
+// SVG palette — kept in sync with styles.css CSS variables
 const PALETTE = {
-  bg:       '#120a1f',
-  surface:  '#1e1033',
-  text:     '#e8d5f5',
-  accent:   '#8b5cf6',
-  accentFg: '#ffffff',
-  border:   '#3d2060',
+  bg:          '#0d0818',   // --bg
+  surface:     '#1a0f2e',   // --surface
+  surface2:    '#251540',   // --surface-2
+  text:        '#e8d5f5',   // --text
+  textMuted:   '#c4b0e0',   // --text-muted (contrast-fixed)
+  accent:      '#7c3aed',   // --accent-btn (darker, for filled cells)
+  accentLight: '#a78bfa',   // --accent (for decorative strokes)
+  accentFg:    '#ffffff',   // --accent-contrast
+  gold:        '#e2b96a',   // --accent-gold (contrast-fixed)
+  border:      '#3d2060',   // --border
+  borderLight: '#7a5aaa',   // --border-light (contrast-fixed)
 };
 
 // ── Font loading ──────────────────────────────────────────────────────────────
@@ -37,13 +42,14 @@ let fontBuffers: Uint8Array[] | null = null;
 async function getFontBuffers(): Promise<Uint8Array[]> {
   if (fontBuffers) return fontBuffers;
   const base = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/fonts`;
-  const [regular, bold, noto, symbols] = await Promise.all([
+  const [regular, bold, noto, symbols, cinzel] = await Promise.all([
     fetch(`${base}/Inter-Regular.ttf`).then(r => r.arrayBuffer()).then(b => new Uint8Array(b)),
     fetch(`${base}/Inter-Bold.ttf`).then(r => r.arrayBuffer()).then(b => new Uint8Array(b)),
     fetch(`${base}/NotoSans-Regular.ttf`).then(r => r.arrayBuffer()).then(b => new Uint8Array(b)),
     fetch(`${base}/NotoSansSymbols2-Regular.ttf`).then(r => r.arrayBuffer()).then(b => new Uint8Array(b)),
+    fetch(`${base}/Cinzel-Bold.ttf`).then(r => r.arrayBuffer()).then(b => new Uint8Array(b)),
   ]);
-  fontBuffers = [regular, bold, noto, symbols];
+  fontBuffers = [regular, bold, noto, symbols, cinzel];
   return fontBuffers;
 }
 
@@ -136,17 +142,19 @@ function cellSvg(
   x: number, y: number, size: number,
   text: string, fontSize: number, isFree = false,
 ): string {
-  const fill    = isFree ? PALETTE.accent   : PALETTE.surface;
-  const stroke  = isFree ? PALETTE.accent   : PALETTE.border;
-  const fgColor = isFree ? PALETTE.accentFg : PALETTE.text;
+  const fill      = isFree ? PALETTE.accent      : PALETTE.surface;
+  const stroke    = isFree ? PALETTE.gold        : PALETTE.border;
+  const strokeW   = isFree ? STROKE_W + 1        : STROKE_W;
+  const fgColor   = isFree ? PALETTE.accentFg    : PALETTE.text;
 
   const lines       = renderLines(text, fontSize, size);
   const lineHeight  = fontSize * 1.3;
   const totalHeight = lines.length * lineHeight;
   const startY      = y + (size - totalHeight) / 2 + fontSize * 0.85;
 
+  // FREE cell: Cinzel Bold (display font). Body cells: Inter + NotoSans fallback.
+  const fontFamily = isFree ? 'Cinzel Bold, NotoSans' : 'Inter, NotoSans';
   const fontWeight = isFree ? 'bold' : 'normal';
-  const fontFamily = isFree ? 'Inter Bold, NotoSans' : 'Inter, NotoSans';
 
   let tspans = '';
   lines.forEach((line, i) => {
@@ -155,10 +163,10 @@ function cellSvg(
   });
 
   return `
-  <rect x="${x + STROKE_W / 2}" y="${y + STROKE_W / 2}"
-        width="${size - STROKE_W}" height="${size - STROKE_W}"
+  <rect x="${x + strokeW / 2}" y="${y + strokeW / 2}"
+        width="${size - strokeW}" height="${size - strokeW}"
         rx="${RX}" ry="${RX}"
-        fill="${fill}" stroke="${stroke}" stroke-width="${STROKE_W}"/>
+        fill="${fill}" stroke="${stroke}" stroke-width="${strokeW}"/>
   <text font-family="${fontFamily}" font-size="${fontSize}" font-weight="${fontWeight}"
         fill="${fgColor}" text-anchor="middle">${tspans}</text>`;
 }
@@ -209,14 +217,33 @@ function buildSvg(cells: string[], cfg: typeof CARD_CONFIGS.mini): string {
     }
   }
 
-  const titleFontSize = Math.floor(margin * 0.55);
-  const titleY        = Math.floor(margin * 0.68);
+  // Title size is independent of cell font sizing and scales with canvas width.
+  const titleFontSize = Math.floor(Math.min(88, Math.max(60, canvasW * 0.065)));
+  const titleY        = Math.floor(titleFontSize * 1.35);
+
+  // Decorative gem + rule under the title (mirrors the site's hero-divider)
+  const dividerY    = Math.floor(titleY + titleFontSize * 0.45);
+  const gemSize     = 5;
+  const gemCx       = canvasW / 2;
+  const gemCy       = dividerY;
+  const ruleLen     = Math.floor(canvasW * 0.18);
+  const ruleGap     = 14;
+
+  const titleDecor = `
+  <line x1="${gemCx - ruleGap - ruleLen}" y1="${gemCy}" x2="${gemCx - ruleGap}" y2="${gemCy}"
+        stroke="${PALETTE.borderLight}" stroke-width="1" opacity="0.7"/>
+  <rect x="${gemCx - gemSize / 2}" y="${gemCy - gemSize / 2}"
+        width="${gemSize}" height="${gemSize}"
+        fill="${PALETTE.accentLight}" transform="rotate(45 ${gemCx} ${gemCy})"/>
+  <line x1="${gemCx + ruleGap}" y1="${gemCy}" x2="${gemCx + ruleGap + ruleLen}" y2="${gemCy}"
+        stroke="${PALETTE.borderLight}" stroke-width="1" opacity="0.7"/>`;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}">
   <rect width="${canvasW}" height="${canvasH}" fill="${PALETTE.bg}"/>
   <text x="${canvasW / 2}" y="${titleY}"
-        font-family="Inter Bold, NotoSans" font-size="${titleFontSize}" font-weight="bold"
-        fill="${PALETTE.text}" text-anchor="middle">Violetshipping Commenting Bingo</text>
+        font-family="Cinzel Bold, NotoSans" font-size="${titleFontSize}" font-weight="bold"
+        fill="${PALETTE.text}" text-anchor="middle" letter-spacing="2">Violetshipping Commenting Bingo</text>
+  ${titleDecor}
   ${rects}
 </svg>`;
 }
