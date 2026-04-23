@@ -17,7 +17,7 @@
     </div>
   </noscript>
 
-  <div class="page-wrapper">
+  <div class="page">
 
     <nav class="site-nav">
       <a href="https://alecto.neocities.org/">Home</a>
@@ -41,13 +41,11 @@
       </div>
     </div>
 
-    <!-- Survey form -->
     <form id="survey-form" class="card" novalidate>
       <!-- Honeypot: hidden from real users, caught bots fill this -->
       <input type="text" name="website" id="hp-website" autocomplete="off"
              tabindex="-1" aria-hidden="true" class="honeypot">
 
-      <!-- Name -->
       <div class="form-section">
         <label for="respondent-name">Your name <span aria-hidden="true">*</span></label>
         <input type="text" id="respondent-name" name="respondent_name"
@@ -55,7 +53,6 @@
         <p class="field-error" id="name-error" role="alert"></p>
       </div>
 
-      <!-- Contact type -->
       <div class="form-section">
         <fieldset id="contact-type-fieldset">
           <legend>How should we send your card? <span aria-hidden="true">*</span></legend>
@@ -82,7 +79,6 @@
         </div>
       </div>
 
-      <!-- Card size -->
       <div class="form-section">
         <fieldset>
           <legend>Card size</legend>
@@ -102,7 +98,7 @@
           </div>
         </fieldset>
         <p class="picks-counter" id="picks-counter" aria-live="polite">
-          Picks: <span class="count" id="picks-count">0</span> / <span id="picks-needed">8</span> needed for Mini
+          Picks: <span class="count" id="picks-count">0</span> / <span id="picks-needed">8</span> needed for <span id="picks-label">Mini</span>
         </p>
         <p class="field-error" id="picks-error" role="alert"></p>
       </div>
@@ -113,7 +109,6 @@
         <div id="questions-container"></div>
       </div>
 
-      <!-- Submit -->
       <div id="submit-error" class="form-error" style="display:none;" role="alert"></div>
       <button type="submit" class="btn" id="submit-btn">Submit &amp; Get My Card</button>
     </form>

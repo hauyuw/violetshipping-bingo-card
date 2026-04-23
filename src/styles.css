@@ -78,7 +78,6 @@ a:hover { color: var(--text); }
 }
 
 /* ── Page layout ───────────────────────────────────────────────────────────── */
-.page-wrapper,
 .page {
   max-width: 720px;
   margin: 0 auto;
@@ -736,7 +735,7 @@ tr:hover > td { background: color-mix(in srgb, var(--accent) 5%, transparent); }
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   h1 { font-size: 1.6rem; }
-  .page-wrapper, .page, .admin-wrapper { padding: 0 0.85rem 3rem; }
+  .page, .admin-wrapper { padding: 0 0.85rem 3rem; }
   .card { padding: 1.25rem; }
   th, td { padding: 0.5rem 0.6rem; }
   .step-grid { grid-template-columns: 1fr; }

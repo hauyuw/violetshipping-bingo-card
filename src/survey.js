@@ -134,14 +134,9 @@
     const needed  = MIN_PICKS[size];
     const checked = document.querySelectorAll('input[type="checkbox"][data-question-id]:checked');
     const count   = checked.length;
-
     document.getElementById('picks-count').textContent  = count;
     document.getElementById('picks-needed').textContent = needed;
-
-    const counterEl = document.getElementById('picks-counter');
-    const label     = SIZE_LABEL[size] || size;
-    counterEl.innerHTML =
-      `Picks: <span class="count" id="picks-count">${count}</span> / <span id="picks-needed">${needed}</span> needed for ${label}`;
+    document.getElementById('picks-label').textContent  = SIZE_LABEL[size] || size;
   }
 
   // ── Validation ────────────────────────────────────────────────────────────
