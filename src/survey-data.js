@@ -13,10 +13,12 @@ window.SURVEY_QUESTIONS = [
       { id: 'q1o6',  text: 'Crossover/Fusions' },
       { id: 'q1o7',  text: 'Pre-Canon' },
       { id: 'q1o8',  text: 'Season 0/Early Manga' },
-      { id: 'q1o9',  text: 'Set during Duelist Kingdom' },
-      { id: 'q1o10', text: 'Set during Battle City' },
-      { id: 'q1o11', text: 'Post-Canon' },
-      { id: 'q1o12', text: 'Canon Divergence' },
+      { id: 'q1o9',  text: 'Duelist Kingdom' },
+      { id: 'q1o10', text: 'Battle City' },
+      { id: 'q1o11', text: 'Filler Arcs' },
+      { id: 'q1o12', text: 'Memory World' },
+      { id: 'q1o13', text: 'Post-Canon' },
+      { id: 'q1o14', text: 'Canon Divergence' },
     ],
   },
   {
@@ -120,7 +122,7 @@ window.CARD_TUMBLR_POST_STATE = 'published';
 window.CARD_FROM_NAME = 'Bingo Generator';
 
 // Resend sender address. Must be a verified domain in your Resend account.
-window.CARD_FROM_EMAIL = 'you@example.com';
+window.CARD_FROM_EMAIL = 'alecto.perdita@gmail.com';
 
 // Optional Reply-To address. Leave empty to omit the header.
 window.CARD_REPLY_TO = '';

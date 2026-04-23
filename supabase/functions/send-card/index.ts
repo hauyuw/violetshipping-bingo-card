@@ -164,8 +164,12 @@ serve(async (req) => {
       return json({ ok: false, error: `Failed to download card PNG: ${dlErr?.message}` }, 500);
     }
 
-    const pngBuf    = new Uint8Array(await fileData.arrayBuffer());
-    const pngBase64 = btoa(String.fromCharCode(...pngBuf));
+    const pngBuf = new Uint8Array(await fileData.arrayBuffer());
+    let binary = '';
+    for (let i = 0; i < pngBuf.length; i += 8192) {
+      binary += String.fromCharCode(...pngBuf.subarray(i, i + 8192));
+    }
+    const pngBase64 = btoa(binary);
 
     const resendKey = Deno.env.get('RESEND_API_KEY')!;
     const fromName  = body.from_name  ?? 'Bingo Generator';
