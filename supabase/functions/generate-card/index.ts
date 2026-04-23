@@ -179,17 +179,22 @@ function escSvg(s: string): string {
 function buildSvg(cells: string[], cfg: typeof CARD_CONFIGS.mini): string {
   const { cols, rows, canvasW, margin, freeIdx } = cfg;
 
+  // Title area reserve so the text never overlaps the grid.
+  const titleFontSize    = Math.floor(Math.min(88, Math.max(60, canvasW * 0.065)));
+  const titleAreaHeight  = Math.max(120, Math.ceil(titleFontSize * 1.55));
+  const titleY           = Math.floor(margin + titleAreaHeight / 2 + titleFontSize * 0.1);
+
   // Square cells: size driven by available width
   const cellSize = Math.floor((canvasW - margin * 2 - GAP * (cols - 1)) / cols);
   const gridW    = cols * cellSize + GAP * (cols - 1);
   const gridH    = rows * cellSize + GAP * (rows - 1);
 
-  // Canvas height fits the grid exactly with equal top/bottom margins
-  const canvasH  = margin + gridH + margin;
+  // Canvas height fits the grid with reserved title area and equal top/bottom margins
+  const canvasH  = margin + titleAreaHeight + gridH + margin;
 
   // Center grid horizontally (accounts for rounding)
   const gridStartX = Math.floor((canvasW - gridW) / 2);
-  const gridStartY = margin;
+  const gridStartY = margin + titleAreaHeight;
 
   const freeText = Deno.env.get('FREE_CELL_TEXT') || 'FREE';
 
@@ -217,10 +222,6 @@ function buildSvg(cells: string[], cfg: typeof CARD_CONFIGS.mini): string {
     }
   }
 
-  // Title size is independent of cell font sizing and scales with canvas width.
-  const titleFontSize = Math.floor(Math.min(88, Math.max(60, canvasW * 0.065)));
-  const titleY        = Math.floor(titleFontSize * 1.35);
-
   // Decorative gem + rule under the title (mirrors the site's hero-divider)
   const dividerY    = Math.floor(titleY + titleFontSize * 0.45);
   const gemSize     = 5;
@@ -240,11 +241,11 @@ function buildSvg(cells: string[], cfg: typeof CARD_CONFIGS.mini): string {
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}">
   <rect width="${canvasW}" height="${canvasH}" fill="${PALETTE.bg}"/>
+  ${rects}
   <text x="${canvasW / 2}" y="${titleY}"
         font-family="Cinzel Bold, NotoSans" font-size="${titleFontSize}" font-weight="bold"
         fill="${PALETTE.text}" text-anchor="middle" letter-spacing="2">Violetshipping Commenting Bingo</text>
   ${titleDecor}
-  ${rects}
 </svg>`;
 }
 
