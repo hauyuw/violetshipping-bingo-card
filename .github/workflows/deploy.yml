@@ -26,3 +26,4 @@ jobs:
           supabase functions deploy generate-card --no-verify-jwt
           supabase functions deploy send-card --no-verify-jwt
           supabase functions deploy tumblr-token-exchange --no-verify-jwt
+          supabase functions deploy exchange-gmail-token --no-verify-jwt
