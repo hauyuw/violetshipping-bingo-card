@@ -111,6 +111,22 @@ function fitsInCell(lines: string[], fontSize: number, cellW: number, cellH: num
   return lines.every(l => l.length * charW <= maxW);
 }
 
+// Returns the largest fontSize where N words stack vertically and each fits in width
+function freeCellFontSize(words: string[], cellSize: number): number {
+  const n      = words.length;
+  const maxH   = cellSize - PADDING * 2;
+  const maxW   = cellSize - PADDING * 2;
+  let fontSize = Math.floor(cellSize * 0.17);
+  const minSize = 16;
+  while (fontSize >= minSize) {
+    const lineHeight = fontSize * 1.3;
+    if (n * lineHeight > maxH) { fontSize -= 2; continue; }
+    if (words.every(w => w.length * fontSize * AVG_CHAR_RATIO <= maxW)) return fontSize;
+    fontSize -= 2;
+  }
+  return minSize;
+}
+
 // Returns the largest fontSize at which every text in the list fits in a square cell
 function uniformFontSize(allTexts: string[], cellSize: number): number {
   let fontSize = Math.floor(cellSize * 0.17);
@@ -153,7 +169,9 @@ function cellSvg(
   const strokeW   = isFree ? STROKE_W + 1        : STROKE_W;
   const fgColor   = isFree ? PALETTE.accentFg    : PALETTE.text;
 
-  const lines       = renderLines(text, fontSize, size);
+  const lines       = isFree
+    ? text.split(/\s+/).filter(Boolean)
+    : renderLines(text, fontSize, size);
   const lineHeight  = fontSize * 1.3;
   const totalHeight = lines.length * lineHeight;
   const startY      = y + (size - totalHeight) / 2 + fontSize * 0.85;
@@ -162,10 +180,28 @@ function cellSvg(
   const fontFamily = isFree ? 'Cinzel, NotoSans' : 'Raleway, Inter, NotoSans';
   const fontWeight = isFree ? 'bold' : 'normal';
 
+  const cx = x + size / 2;
   let tspans = '';
   lines.forEach((line, i) => {
     const ty = startY + i * lineHeight;
-    tspans += `<tspan x="${x + size / 2}" y="${ty}">${escSvg(line)}</tspan>`;
+    if (isFree && line.includes('✦')) {
+      // Split ✦ into its own tspan so Cinzel handles text and Noto handles the symbol.
+      // dy="0" on subsequent tspans avoids starting a new text chunk, preserving centering.
+      const parts = line.split(/(✦)/);
+      let isFirst = true;
+      for (const part of parts) {
+        if (!part) continue;
+        const pFont = part === '✦' ? '"Noto Sans Symbols 2"' : fontFamily;
+        if (isFirst) {
+          tspans += `<tspan x="${cx}" y="${ty}" font-family="${pFont}">${escSvg(part)}</tspan>`;
+          isFirst = false;
+        } else {
+          tspans += `<tspan dy="0" font-family="${pFont}">${escSvg(part)}</tspan>`;
+        }
+      }
+    } else {
+      tspans += `<tspan x="${cx}" y="${ty}">${escSvg(line)}</tspan>`;
+    }
   });
 
   return `
@@ -212,7 +248,8 @@ function buildSvg(cells: string[], cfg: typeof CARD_CONFIGS.mini): string {
     }
   }
   const bodyFontSize = uniformFontSize(bodyTexts, cellSize);
-  const freeFontSize = freeIdx >= 0 ? uniformFontSize([freeText], cellSize) : bodyFontSize;
+  const freeWords    = freeText.split(/\s+/).filter(Boolean);
+  const freeFontSize = freeIdx >= 0 ? freeCellFontSize(freeWords, cellSize) : bodyFontSize;
 
   let rects = '';
   idx = 0;
