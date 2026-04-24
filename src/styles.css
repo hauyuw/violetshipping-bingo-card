@@ -223,7 +223,7 @@ h3 {
   margin-bottom: 1.5rem;
   margin-top: 2rem;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .card::before {
@@ -365,6 +365,74 @@ input[type="checkbox"] {
 .picks-counter { font-size: 0.88rem; color: var(--text-muted); margin-top: 0.75rem; }
 .picks-counter .count { color: var(--accent-2); font-weight: 600; }
 
+/* ── Option tooltips ───────────────────────────────────────────────────────── */
+.opt-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--border-light);
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: 0.3rem;
+  line-height: 1;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.opt-tip:hover,
+.opt-tip:focus { border-color: var(--accent); color: var(--accent-2); outline: none; }
+
+.tooltip-bubble {
+  position: fixed;
+  visibility: hidden;
+  opacity: 0;
+  background: var(--surface-2);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-family: var(--font-body);
+  font-weight: normal;
+  letter-spacing: normal;
+  text-transform: none;
+  line-height: 1.45;
+  padding: 0.45rem 0.65rem;
+  width: 200px;
+  pointer-events: none;
+  z-index: 1000;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  transition: opacity 0.15s;
+}
+
+.tooltip-bubble.visible { visibility: visible; opacity: 1; }
+
+/* ── Category heading row ──────────────────────────────────────────────────── */
+.section-heading-row { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 0; }
+.section-heading-row h3 { margin: 0; }
+.toggle-all-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.15s;
+  white-space: nowrap;
+}
+.toggle-all-btn:hover { color: var(--accent-2); }
+
 /* ── Collapsible options ───────────────────────────────────────────────────── */
 .show-more-btn {
   background: none;
@@ -382,8 +450,10 @@ input[type="checkbox"] {
 }
 
 .show-more-btn:hover { border-color: var(--accent); color: var(--accent-2); }
-.checkbox-group label.hidden-options { display: none; }
-.checkbox-group label.hidden-options.expanded { display: flex; }
+.option-row { display: flex; align-items: center; gap: 0.4rem; }
+.option-row label { flex: 1; }
+.checkbox-group .hidden-options { display: none; }
+.checkbox-group .hidden-options.expanded { display: flex; }
 
 /* ── Inline errors ─────────────────────────────────────────────────────────── */
 .field-error { color: var(--error); font-size: 0.82rem; margin-top: 0.35rem; font-style: italic; }
