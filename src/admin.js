@@ -244,6 +244,9 @@
       localStorage.removeItem('tumblr_blog_name');
       showReconnectBanner();
       setActionError(id, 'Tumblr token expired. Reconnect above, then try again.');
+    } else if (result.error === 'GMAIL_NEEDS_REAUTH') {
+      showGmailReauthBanner();
+      setActionError(id, 'Gmail connection expired. Reconnect above, then try again.');
     } else {
       setActionError(id, result.error || 'Send failed. Try again.');
     }
@@ -386,6 +389,83 @@
       if (action === 'delete-png') await handleDeletePng(id);
       if (action === 'view')       await handleViewPicks(id, btn);
     });
+  }
+
+  // ── Gmail OAuth ───────────────────────────────────────────────────────────
+
+  function startGmailOAuth() {
+    const state = 'gmail_' + base64url(crypto.getRandomValues(new Uint8Array(16)));
+    sessionStorage.setItem('gmail_oauth_state', state);
+
+    const redirectUri = window.location.origin + window.location.pathname;
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id:     window.GMAIL_CLIENT_ID,
+      redirect_uri:  redirectUri,
+      scope:         'https://www.googleapis.com/auth/gmail.send email',
+      access_type:   'offline',
+      prompt:        'consent',
+      state,
+    });
+
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+  }
+
+  async function finishGmailOAuth(code, returnedState) {
+    const storedState = sessionStorage.getItem('gmail_oauth_state');
+    if (!storedState || storedState !== returnedState) {
+      alert('OAuth state mismatch. Please try connecting again.');
+      return;
+    }
+    sessionStorage.removeItem('gmail_oauth_state');
+
+    const redirectUri = window.location.origin + window.location.pathname;
+    const { data: { session } } = await window.supabaseClient.auth.getSession();
+
+    let result;
+    try {
+      const resp = await fetch(
+        `${window.SUPABASE_URL}/functions/v1/exchange-gmail-token`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ code, redirect_uri: redirectUri }),
+        }
+      );
+      result = await resp.json();
+    } catch (err) {
+      alert(`Gmail connection failed: ${err.message}`);
+      return;
+    }
+
+    if (!result.ok) {
+      alert(`Gmail connection failed: ${result.error}`);
+      return;
+    }
+
+    localStorage.setItem('gmail_email', result.email || '');
+    window.history.replaceState({}, '', window.location.pathname);
+    updateGmailButton();
+  }
+
+  function updateGmailButton() {
+    const btn   = document.getElementById('gmail-connect-btn');
+    const email = localStorage.getItem('gmail_email');
+
+    if (email) {
+      btn.textContent = `Gmail: ${email}`;
+      btn.classList.add('connected');
+    } else {
+      btn.textContent = 'Connect Gmail';
+      btn.classList.remove('connected');
+    }
+  }
+
+  function showGmailReauthBanner() {
+    document.getElementById('gmail-reauth-banner').style.display = 'block';
   }
 
   // ── Tumblr OAuth ──────────────────────────────────────────────────────────
@@ -543,6 +623,7 @@
     loadSubmissions();
     attachTableListeners();
     updateTumblrButton();
+    updateGmailButton();
 
     document.getElementById('refresh-btn').addEventListener('click', loadSubmissions);
     document.getElementById('logout-btn').addEventListener('click', async () => {
@@ -550,10 +631,9 @@
       showLogin();
     });
 
-    const connectBtn = document.getElementById('tumblr-connect-btn');
-    connectBtn.addEventListener('click', async () => {
+    const tumblrBtn = document.getElementById('tumblr-connect-btn');
+    tumblrBtn.addEventListener('click', async () => {
       if (localStorage.getItem('tumblr_token')) {
-        // Already connected — clicking again starts reconnect
         localStorage.removeItem('tumblr_token');
         localStorage.removeItem('tumblr_blog_name');
         await window.supabaseClient.from('settings').delete().eq('key', 'tumblr_token');
@@ -561,17 +641,31 @@
       startTumblrOAuth();
     });
 
+    const gmailBtn = document.getElementById('gmail-connect-btn');
+    gmailBtn.addEventListener('click', async () => {
+      if (localStorage.getItem('gmail_email')) {
+        localStorage.removeItem('gmail_email');
+        updateGmailButton();
+      }
+      startGmailOAuth();
+    });
+
     const reconnectBanner = document.getElementById('reconnect-banner');
     reconnectBanner.addEventListener('click', startTumblrOAuth);
     reconnectBanner.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') startTumblrOAuth();
+    });
+
+    const gmailBanner = document.getElementById('gmail-reauth-banner');
+    gmailBanner.addEventListener('click', startGmailOAuth);
+    gmailBanner.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') startGmailOAuth();
     });
   }
 
   async function init() {
     const supa = window.supabaseClient;
 
-    // Handle Tumblr OAuth return
     const urlParams = new URLSearchParams(window.location.search);
     const code  = urlParams.get('code');
     const state = urlParams.get('state');
@@ -581,10 +675,9 @@
     if (!session) {
       showLogin();
       document.getElementById('login-form').addEventListener('submit', handleLogin);
-      // If we have an OAuth code but are not logged in, still need to log in first
-      // Preserve the code in sessionStorage in case they just arrived from OAuth
       if (code && state) {
-        sessionStorage.setItem('pending_tumblr_code', JSON.stringify({ code, state }));
+        const key = state.startsWith('gmail_') ? 'pending_gmail_code' : 'pending_tumblr_code';
+        sessionStorage.setItem(key, JSON.stringify({ code, state }));
         window.history.replaceState({}, '', window.location.pathname);
       }
       return;
@@ -593,16 +686,25 @@
     showDashboard();
     initDashboard();
 
-    // Process any pending OAuth code (after returning from Tumblr)
     if (code && state) {
       window.history.replaceState({}, '', window.location.pathname);
-      await finishTumblrOAuth(code, state);
+      if (state.startsWith('gmail_')) {
+        await finishGmailOAuth(code, state);
+      } else {
+        await finishTumblrOAuth(code, state);
+      }
     } else {
-      const pending = sessionStorage.getItem('pending_tumblr_code');
-      if (pending) {
+      const pendingTumblr = sessionStorage.getItem('pending_tumblr_code');
+      if (pendingTumblr) {
         sessionStorage.removeItem('pending_tumblr_code');
-        const { code: c, state: s } = JSON.parse(pending);
+        const { code: c, state: s } = JSON.parse(pendingTumblr);
         await finishTumblrOAuth(c, s);
+      }
+      const pendingGmail = sessionStorage.getItem('pending_gmail_code');
+      if (pendingGmail) {
+        sessionStorage.removeItem('pending_gmail_code');
+        const { code: c, state: s } = JSON.parse(pendingGmail);
+        await finishGmailOAuth(c, s);
       }
     }
   }

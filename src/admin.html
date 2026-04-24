@@ -53,6 +53,7 @@
       <div class="admin-toolbar-left">
         <button class="btn btn-sm btn-ghost" id="refresh-btn">Refresh</button>
         <button class="btn btn-sm btn-ghost" id="tumblr-connect-btn">Connect Tumblr</button>
+        <button class="btn btn-sm btn-ghost" id="gmail-connect-btn">Connect Gmail</button>
         <div>
           <p class="tumblr-warning" id="tumblr-mismatch-warning" style="display:none;">
             ⚠ Connected account differs from TUMBLR_BLOG_IDENTIFIER — posts may fail.
@@ -67,6 +68,11 @@
     <!-- Tumblr expired reconnect banner -->
     <div id="reconnect-banner" class="reconnect-banner" style="display:none;" tabindex="0">
       ⚠ Your Tumblr connection expired — click here to reconnect.
+    </div>
+
+    <!-- Gmail expired reconnect banner -->
+    <div id="gmail-reauth-banner" class="reconnect-banner" style="display:none;" tabindex="0">
+      ⚠ Your Gmail connection expired — click here to reconnect.
     </div>
 
     <!-- Submissions -->

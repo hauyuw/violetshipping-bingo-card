@@ -203,26 +203,27 @@ function buildSvg(cells: string[], cfg: typeof CARD_CONFIGS.mini): string {
 
   const freeText = Deno.env.get('FREE_CELL_TEXT') || 'FREE';
 
-  // Collect all texts to find the largest font size that fits every cell uniformly
-  const allTexts: string[] = [];
+  // Body cells and FREE cell sized independently so long body texts don't shrink the FREE cell
+  const bodyTexts: string[] = [];
   let idx = 0;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const pos = r * cols + c;
-      allTexts.push(pos === freeIdx ? freeText : (cells[idx++] ?? ''));
+      if (r * cols + c !== freeIdx) bodyTexts.push(cells[idx++] ?? '');
     }
   }
-  const fontSize = uniformFontSize(allTexts, cellSize);
+  const bodyFontSize = uniformFontSize(bodyTexts, cellSize);
+  const freeFontSize = freeIdx >= 0 ? uniformFontSize([freeText], cellSize) : bodyFontSize;
 
   let rects = '';
   idx = 0;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const pos    = r * cols + c;
-      const x      = gridStartX + c * (cellSize + GAP);
-      const y      = gridStartY + r * (cellSize + GAP);
-      const isFree = pos === freeIdx;
-      const text   = isFree ? freeText : (cells[idx++] ?? '');
+      const pos      = r * cols + c;
+      const x        = gridStartX + c * (cellSize + GAP);
+      const y        = gridStartY + r * (cellSize + GAP);
+      const isFree   = pos === freeIdx;
+      const text     = isFree ? freeText : (cells[idx++] ?? '');
+      const fontSize = isFree ? freeFontSize : bodyFontSize;
       rects += cellSvg(x, y, cellSize, text, fontSize, isFree);
     }
   }

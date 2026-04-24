@@ -1,6 +1,6 @@
 # Bingo Generator
 
-A static-site bingo card generator hosted on Neocities. Respondents fill out a survey form; the admin generates a card PNG server-side and delivers it via a Tumblr @mention post or Resend email.
+A static-site bingo card generator hosted on Neocities. Respondents fill out a survey form; the admin generates a card PNG server-side and delivers it via a Tumblr @mention post or Gmail email.
 
 ---
 
@@ -12,7 +12,7 @@ A static-site bingo card generator hosted on Neocities. Respondents fill out a s
 | Backend | Supabase (PostgreSQL, Storage, Edge Functions, Auth) |
 | Card rendering | `@resvg/resvg-wasm` in a Deno Edge Function |
 | Tumblr delivery | Tumblr NPF API (photo post) |
-| Email delivery | Resend API |
+| Email delivery | Gmail API (via OAuth2 refresh token) |
 
 ---
 
@@ -108,11 +108,21 @@ In Supabase dashboard: **Authentication → Users → Add user**. Enter your ema
    Use your actual deployed path — the URL must match exactly where `admin.html` is served.
 3. Note your **OAuth2 Client ID** and **Client Secret**.
 
-### 5. Resend
+### 5. Gmail app
 
-1. Sign up at [resend.com](https://resend.com).
-2. Add and verify your sending domain.
-3. Create an API key with **Sending access**.
+1. Go to [console.cloud.google.com](https://console.cloud.google.com) and create a new project (or select an existing one).
+2. Enable the **Gmail API**: APIs & Services → Library → search "Gmail API" → Enable.
+3. Configure the OAuth consent screen: APIs & Services → OAuth consent screen.
+   - User type: **External** (lets you use any Gmail account).
+   - Fill in app name and contact email.
+   - Add scope: `https://www.googleapis.com/auth/gmail.send`.
+   - Add your Gmail address as a **test user** (required while the app is in testing status).
+4. Create credentials: APIs & Services → Credentials → Create Credentials → **OAuth client ID**.
+   - Application type: **Web application**.
+   - Authorized redirect URIs: add the full URL of your admin page, e.g. `https://yourblog.neocities.org/bingo/admin.html`.
+5. Note the **Client ID** and **Client Secret**.
+
+> The Gmail API free tier allows 500 outbound emails per day — more than enough for a fan event.
 
 ### 6. Supabase secrets
 
@@ -123,7 +133,9 @@ In Supabase dashboard → **Settings → Edge Functions → Secrets**, add:
 | `TUMBLR_CLIENT_ID` | From your Tumblr app |
 | `TUMBLR_CLIENT_SECRET` | From your Tumblr app |
 | `TUMBLR_BLOG_IDENTIFIER` | Your blog, e.g. `yourblog.tumblr.com` |
-| `RESEND_API_KEY` | From Resend |
+| `GMAIL_CLIENT_ID` | From your Google OAuth client |
+| `GMAIL_CLIENT_SECRET` | From your Google OAuth client |
+| `FROM_NAME` | Display name shown in email From header (e.g. `Bingo Generator`) |
 | `FREE_CELL_TEXT` | Must match `window.FREE_CELL_TEXT` in `survey-data.js` (default: `FREE`) |
 
 `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are auto-injected by the Supabase runtime.
@@ -138,6 +150,7 @@ supabase link --project-ref your-project-ref
 supabase functions deploy generate-card --no-verify-jwt
 supabase functions deploy send-card --no-verify-jwt
 supabase functions deploy tumblr-token-exchange --no-verify-jwt
+supabase functions deploy exchange-gmail-token --no-verify-jwt
 ```
 
 > The `--no-verify-jwt` flag is required for projects using ES256 JWT signing (all projects created after mid-2024). Without it the functions return an `UNAUTHORIZED_UNSUPPORTED_TOKEN_ALGORITHM` error.
@@ -160,9 +173,10 @@ In Supabase dashboard → **Database → Webhooks → Create webhook**:
 Copy `src/config.example.js` to `src/config.js` and fill in:
 
 ```js
-const SUPABASE_URL    = 'https://your-project-ref.supabase.co';
+const SUPABASE_URL      = 'https://your-project-ref.supabase.co';
 const SUPABASE_ANON_KEY = 'your-anon-key';
 const TUMBLR_CLIENT_ID  = 'your-tumblr-client-id';
+const GMAIL_CLIENT_ID   = 'your-google-oauth-client-id';
 ```
 
 Find `SUPABASE_URL` and `SUPABASE_ANON_KEY` in Supabase dashboard → **Settings → API**.
@@ -202,7 +216,7 @@ Share the URL with your audience. They fill in their name, contact method (Tumbl
 ### Admin dashboard (`admin.html`)
 
 1. Log in with the email/password you created in step 2.
-2. Click **Connect Tumblr** and complete the OAuth flow. This saves the token server-side so cards are delivered automatically — you only need to do this once (or again if the token expires).
+2. Click **Connect Tumblr** to authorize Tumblr delivery, and/or **Connect Gmail** to authorize email delivery. Both save tokens server-side — you only need to do this once (or again if a token expires). If a token expires, a banner appears with one click to reconnect.
 3. The submissions table shows all submissions. Cards are generated and sent automatically after submission — you should see them arrive at `sent` status without any manual action.
 4. If a card is stuck in `generating` for more than 2 minutes, click **Regenerate**.
 5. If auto-send fails, the card stays at `ready` — click **Send** to deliver it manually.
@@ -228,10 +242,13 @@ Check **Supabase dashboard → Edge Functions → Logs → generate-card** for e
 Common causes: font files missing, WASM fetch failed, Storage bucket not created, webhook misconfigured.
 
 **Tumblr send returns 401**
-Your Tumblr OAuth token expired. Click **Connect Tumblr** again to re-authorize.
+Your Tumblr OAuth token expired. Click **Connect Tumblr** again to re-authorize (or click the banner that appears).
 
-**Email not delivered**
-Check Resend logs. Verify the `from_email` domain is verified in your Resend account. Check that `RESEND_API_KEY` is set correctly.
+**Email not delivered / GMAIL_NEEDS_REAUTH**
+Your Gmail OAuth token expired. Click **Connect Gmail** again to re-authorize (or click the banner that appears). If you never connected Gmail, do so first via the admin toolbar.
+
+**Gmail token exchange returns "no refresh token"**
+This happens when you've previously authorized the app and Google skipped issuing a new refresh token. Go to [myaccount.google.com/permissions](https://myaccount.google.com/permissions), revoke access for your app, then click **Connect Gmail** again.
 
 **"Not enough picks" error**
 The DB Webhook fired before the client finished inserting picks. The Edge Function polls up to 5 × 1 s. If picks still didn't arrive, click **Regenerate** to retry.

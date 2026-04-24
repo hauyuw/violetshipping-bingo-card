@@ -1,22 +1,44 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+async function getGmailAccessToken(
+  svc: ReturnType<typeof createClient>,
+  refreshToken: string,
+): Promise<string | null> {
+  const resp = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      refresh_token: refreshToken,
+      client_id:     Deno.env.get('GMAIL_CLIENT_ID')!,
+      client_secret: Deno.env.get('GMAIL_CLIENT_SECRET')!,
+      grant_type:    'refresh_token',
+    }),
+  });
+
+  if (!resp.ok) {
+    console.error('Gmail access token refresh failed:', resp.status, await resp.text());
+    await svc.from('settings').upsert({ key: 'gmail_auth_status', value: 'needs_reauth' }, { onConflict: 'key' });
+    return null;
+  }
+
+  const data = await resp.json();
+  return data.access_token ?? null;
+}
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, content-type',
 };
 
 interface SendCardBody {
-  submission_id:           string;
-  tumblr_token?:           string;
-  card_tags?:              string[];
+  submission_id:            string;
+  tumblr_token?:            string;
+  card_tags?:               string[];
   tumblr_caption_template?: string;
-  tumblr_post_state?:      'published' | 'queue' | 'draft';
-  from_name?:              string;
-  from_email?:             string;
-  reply_to?:               string;
-  email_subject_template?: string;
-  email_body_template?:    string;
+  tumblr_post_state?:       'published' | 'queue' | 'draft';
+  email_subject_template?:  string;
+  email_body_template?:     string;
 }
 
 serve(async (req) => {
@@ -171,36 +193,72 @@ serve(async (req) => {
     }
     const pngBase64 = btoa(binary);
 
-    const resendKey = Deno.env.get('RESEND_API_KEY')!;
-    const fromName  = body.from_name  ?? 'Bingo Generator';
-    const fromEmail = body.from_email ?? '';
-    const replyTo   = body.reply_to   ?? '';
+    // Fetch Gmail credentials from settings
+    const { data: settingsRows } = await svc
+      .from('settings')
+      .select('key, value')
+      .in('key', ['gmail_refresh_token', 'gmail_email']);
+
+    const settingsMap: Record<string, string> = {};
+    for (const row of (settingsRows ?? [])) settingsMap[row.key] = row.value;
+
+    const refreshToken = settingsMap['gmail_refresh_token'];
+    if (!refreshToken) return json({ ok: false, error: 'GMAIL_NEEDS_REAUTH' }, 400);
+
+    const accessToken = await getGmailAccessToken(svc, refreshToken);
+    if (!accessToken) return json({ ok: false, error: 'GMAIL_NEEDS_REAUTH' }, 401);
+
+    const fromEmail = settingsMap['gmail_email'] || Deno.env.get('FROM_EMAIL') || '';
+    const fromName  = Deno.env.get('FROM_NAME') ?? 'Bingo Generator';
+    const replyTo   = Deno.env.get('REPLY_TO') ?? '';
     const subject   = fillTemplate(body.email_subject_template ?? "{name}, here's your bingo card!");
     const textBody  = fillTemplate(body.email_body_template    ?? "Hey {name}, here's your bingo card! It's attached.");
 
-    const emailPayload: Record<string, unknown> = {
-      from:        `${fromName} <${fromEmail}>`,
-      to:          [sub.contact_value],
-      subject,
-      text:        textBody,
-      attachments: [{ filename: 'bingo-card.png', content: pngBase64 }],
-    };
+    const boundary = '----=_BingoBoundary';
+    let mime = `MIME-Version: 1.0\r\n`;
+    mime += `From: ${fromName} <${fromEmail}>\r\n`;
+    mime += `To: ${sub.contact_value as string}\r\n`;
+    if (replyTo) mime += `Reply-To: ${replyTo}\r\n`;
+    mime += `Subject: ${subject}\r\n`;
+    mime += `Content-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n`;
+    mime += `--${boundary}\r\n`;
+    mime += `Content-Type: text/plain; charset=UTF-8\r\n\r\n`;
+    mime += `${textBody}\r\n\r\n`;
+    mime += `--${boundary}\r\n`;
+    mime += `Content-Type: image/png\r\n`;
+    mime += `Content-Transfer-Encoding: base64\r\n`;
+    mime += `Content-Disposition: attachment; filename="bingo-card.png"\r\n\r\n`;
+    mime += pngBase64.match(/.{1,76}/g)!.join('\r\n');
+    mime += `\r\n--${boundary}--`;
 
-    if (replyTo) emailPayload.reply_to = [replyTo];
+    const mimeBytes = new TextEncoder().encode(mime);
+    let mimeBin = '';
+    for (let i = 0; i < mimeBytes.length; i += 8192) {
+      mimeBin += String.fromCharCode(...mimeBytes.subarray(i, i + 8192));
+    }
+    const rawMessage = btoa(mimeBin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
-    const resendResp = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${resendKey}`,
-        'Content-Type': 'application/json',
+    const gmailResp = await fetch(
+      'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+      {
+        method: 'POST',
+        headers: {
+          Authorization:  `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ raw: rawMessage }),
       },
-      body: JSON.stringify(emailPayload),
-    });
+    );
 
-    if (!resendResp.ok) {
-      const errBody = await resendResp.text();
-      console.error('Resend failed:', resendResp.status, errBody);
-      return json({ ok: false, error: `Email send failed: ${resendResp.status}` }, 502);
+    if (gmailResp.status === 401) {
+      await svc.from('settings').upsert({ key: 'gmail_auth_status', value: 'needs_reauth' }, { onConflict: 'key' });
+      return json({ ok: false, error: 'GMAIL_NEEDS_REAUTH' }, 401);
+    }
+
+    if (!gmailResp.ok) {
+      const errBody = await gmailResp.text();
+      console.error('Gmail send failed:', gmailResp.status, errBody);
+      return json({ ok: false, error: `Gmail API error ${gmailResp.status}` }, 502);
     }
   } else {
     return json({ ok: false, error: `Unknown contact_type: ${sub.contact_type}` }, 400);
