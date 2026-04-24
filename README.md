@@ -135,6 +135,7 @@ In Supabase dashboard → **Settings → Edge Functions → Secrets**, add:
 | `TUMBLR_BLOG_IDENTIFIER` | Your blog, e.g. `yourblog.tumblr.com` |
 | `GMAIL_CLIENT_ID` | From your Google OAuth client |
 | `GMAIL_CLIENT_SECRET` | From your Google OAuth client |
+| `ADMIN_URL` | Full URL of your admin page, e.g. `https://yourblog.neocities.org/admin.html` |
 | `FROM_NAME` | Display name shown in email From header (e.g. `Bingo Generator`) |
 | `FREE_CELL_TEXT` | Must match `window.FREE_CELL_TEXT` in `survey-data.js` (default: `FREE`) |
 

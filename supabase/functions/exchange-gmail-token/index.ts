@@ -9,85 +9,87 @@ const CORS = {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader) return json({ ok: false, error: 'Unauthorized' }, 401);
-
-  const jwtToken = authHeader.replace(/^Bearer\s+/i, '');
-  const isAuthorized = (() => {
-    try {
-      const payload = JSON.parse(atob(jwtToken.split('.')[1]));
-      return payload.role === 'service_role' || payload.role === 'authenticated';
-    } catch { return false; }
-  })();
-
-  if (!isAuthorized) return json({ ok: false, error: 'Unauthorized' }, 401);
-
   const svc = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
 
-  let body: { code: string; redirect_uri: string };
-  try {
-    body = await req.json();
-  } catch {
-    return json({ ok: false, error: 'Invalid JSON body' }, 400);
+  const selfUri  = `${Deno.env.get('SUPABASE_URL')}/functions/v1/exchange-gmail-token`;
+  const adminUrl = Deno.env.get('ADMIN_URL')!;
+
+  // ── GET: Google redirects here after the user grants permission ───────────
+  if (req.method === 'GET') {
+    const url   = new URL(req.url);
+    const code  = url.searchParams.get('code');
+    const state = url.searchParams.get('state') ?? '';
+    const error = url.searchParams.get('error');
+
+    if (error || !code) {
+      return Response.redirect(
+        `${adminUrl}?gmail_error=${encodeURIComponent(error || 'cancelled')}`,
+        302,
+      );
+    }
+
+    const result = await exchangeAndStore(svc, code, selfUri);
+
+    if (!result.ok) {
+      return Response.redirect(
+        `${adminUrl}?gmail_error=${encodeURIComponent(result.error)}`,
+        302,
+      );
+    }
+
+    return Response.redirect(
+      `${adminUrl}?gmail_connected=1&gmail_email=${encodeURIComponent(result.email)}&state=${encodeURIComponent(state)}`,
+      302,
+    );
   }
 
-  const { code, redirect_uri } = body;
-  if (!code || !redirect_uri) return json({ ok: false, error: 'Missing code or redirect_uri' }, 400);
+  return json({ ok: false, error: 'Method not allowed' }, 405);
+});
 
-  const clientId     = Deno.env.get('GMAIL_CLIENT_ID')!;
-  const clientSecret = Deno.env.get('GMAIL_CLIENT_SECRET')!;
-
+async function exchangeAndStore(
+  svc: ReturnType<typeof createClient>,
+  code: string,
+  redirectUri: string,
+): Promise<{ ok: true; email: string } | { ok: false; error: string }> {
   const tokenResp = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       code,
-      client_id:     clientId,
-      client_secret: clientSecret,
-      redirect_uri,
+      client_id:     Deno.env.get('GMAIL_CLIENT_ID')!,
+      client_secret: Deno.env.get('GMAIL_CLIENT_SECRET')!,
+      redirect_uri:  redirectUri,
       grant_type:    'authorization_code',
     }),
   });
 
   if (!tokenResp.ok) {
-    const errText = await tokenResp.text();
-    console.error('Gmail token exchange failed:', tokenResp.status, errText);
-    return json({ ok: false, error: 'Token exchange failed' }, 502);
+    console.error('Gmail token exchange failed:', tokenResp.status, await tokenResp.text());
+    return { ok: false, error: 'token_exchange_failed' };
   }
 
   const tokens = await tokenResp.json();
-  const { access_token, refresh_token } = tokens;
+  if (!tokens.refresh_token) return { ok: false, error: 'no_refresh_token' };
 
-  if (!refresh_token) {
-    return json({
-      ok: false,
-      error: 'No refresh token returned — revoke app access at myaccount.google.com/permissions and try again',
-    }, 400);
-  }
-
-  // Fetch Gmail address to display in the admin UI
-  const userResp = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-    headers: { Authorization: `Bearer ${access_token}` },
+  const userResp   = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+    headers: { Authorization: `Bearer ${tokens.access_token}` },
   });
-  const userInfo = userResp.ok ? await userResp.json() : {};
-  const gmailEmail = userInfo.email ?? '';
+  const gmailEmail = userResp.ok ? ((await userResp.json()).email ?? '') : '';
 
-  const upserts = [
-    { key: 'gmail_refresh_token', value: refresh_token },
+  for (const row of [
+    { key: 'gmail_refresh_token', value: tokens.refresh_token },
     { key: 'gmail_auth_status',   value: 'ok' },
     { key: 'gmail_email',         value: gmailEmail },
-  ];
-
-  for (const row of upserts) {
+  ]) {
     const { error } = await svc.from('settings').upsert(row, { onConflict: 'key' });
     if (error) console.error('Failed to upsert setting:', row.key, error.message);
   }
 
-  return json({ ok: true, email: gmailEmail });
-});
+  return { ok: true, email: gmailEmail };
+}
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {

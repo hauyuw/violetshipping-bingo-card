@@ -397,7 +397,7 @@
     const state = 'gmail_' + base64url(crypto.getRandomValues(new Uint8Array(16)));
     sessionStorage.setItem('gmail_oauth_state', state);
 
-    const redirectUri = window.location.origin + window.location.pathname;
+    const redirectUri = `${window.SUPABASE_URL}/functions/v1/exchange-gmail-token`;
     const params = new URLSearchParams({
       response_type: 'code',
       client_id:     window.GMAIL_CLIENT_ID,
@@ -409,46 +409,6 @@
     });
 
     window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
-  }
-
-  async function finishGmailOAuth(code, returnedState) {
-    const storedState = sessionStorage.getItem('gmail_oauth_state');
-    if (!storedState || storedState !== returnedState) {
-      alert('OAuth state mismatch. Please try connecting again.');
-      return;
-    }
-    sessionStorage.removeItem('gmail_oauth_state');
-
-    const redirectUri = window.location.origin + window.location.pathname;
-    const { data: { session } } = await window.supabaseClient.auth.getSession();
-
-    let result;
-    try {
-      const resp = await fetch(
-        `${window.SUPABASE_URL}/functions/v1/exchange-gmail-token`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ code, redirect_uri: redirectUri }),
-        }
-      );
-      result = await resp.json();
-    } catch (err) {
-      alert(`Gmail connection failed: ${err.message}`);
-      return;
-    }
-
-    if (!result.ok) {
-      alert(`Gmail connection failed: ${result.error}`);
-      return;
-    }
-
-    localStorage.setItem('gmail_email', result.email || '');
-    window.history.replaceState({}, '', window.location.pathname);
-    updateGmailButton();
   }
 
   function updateGmailButton() {
@@ -675,9 +635,8 @@
     if (!session) {
       showLogin();
       document.getElementById('login-form').addEventListener('submit', handleLogin);
-      if (code && state) {
-        const key = state.startsWith('gmail_') ? 'pending_gmail_code' : 'pending_tumblr_code';
-        sessionStorage.setItem(key, JSON.stringify({ code, state }));
+      if (code && state && !state.startsWith('gmail_')) {
+        sessionStorage.setItem('pending_tumblr_code', JSON.stringify({ code, state }));
         window.history.replaceState({}, '', window.location.pathname);
       }
       return;
@@ -686,13 +645,10 @@
     showDashboard();
     initDashboard();
 
-    if (code && state) {
+    // Tumblr OAuth return (code + state, state does not start with 'gmail_')
+    if (code && state && !state.startsWith('gmail_')) {
       window.history.replaceState({}, '', window.location.pathname);
-      if (state.startsWith('gmail_')) {
-        await finishGmailOAuth(code, state);
-      } else {
-        await finishTumblrOAuth(code, state);
-      }
+      await finishTumblrOAuth(code, state);
     } else {
       const pendingTumblr = sessionStorage.getItem('pending_tumblr_code');
       if (pendingTumblr) {
@@ -700,11 +656,30 @@
         const { code: c, state: s } = JSON.parse(pendingTumblr);
         await finishTumblrOAuth(c, s);
       }
-      const pendingGmail = sessionStorage.getItem('pending_gmail_code');
-      if (pendingGmail) {
-        sessionStorage.removeItem('pending_gmail_code');
-        const { code: c, state: s } = JSON.parse(pendingGmail);
-        await finishGmailOAuth(c, s);
+    }
+
+    // Gmail OAuth return (edge function redirects back with ?gmail_connected=1)
+    const gmailConnected = urlParams.get('gmail_connected');
+    const gmailEmail     = urlParams.get('gmail_email');
+    const gmailError     = urlParams.get('gmail_error');
+    const returnedState  = urlParams.get('state');
+
+    if (gmailConnected === '1') {
+      const storedState = sessionStorage.getItem('gmail_oauth_state');
+      sessionStorage.removeItem('gmail_oauth_state');
+      if (storedState && storedState !== returnedState) {
+        alert('OAuth state mismatch. Please try connecting again.');
+      } else {
+        localStorage.setItem('gmail_email', gmailEmail || '');
+        updateGmailButton();
+      }
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (gmailError) {
+      window.history.replaceState({}, '', window.location.pathname);
+      if (gmailError === 'no_refresh_token') {
+        alert('Gmail connection failed: no refresh token returned. Go to myaccount.google.com/permissions, revoke this app, then try again.');
+      } else {
+        alert(`Gmail connection failed: ${gmailError}`);
       }
     }
   }
